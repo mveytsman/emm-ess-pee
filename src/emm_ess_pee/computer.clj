@@ -87,22 +87,22 @@
   (set-SR computer (set-bit (SR computer) 2 value)))
 
 (defn set-GIE [computer value]
-  (set-SR computer (set-bit (SR computer 3) value)))
+  (set-SR computer (set-bit (SR computer) 3 value)))
 
 (defn set-CPUOFF [computer value]
-  (set-SR computer (set-bit (SR computer 4) value)))
+  (set-SR computer (set-bit (SR computer) 4 value)))
 
 (defn set-OSCOFF [computer value]
-  (set-SR computer (set-bit (SR computer 5) value)))
+  (set-SR computer (set-bit (SR computer) 5 value)))
 
 (defn set-SCG0 [computer value]
-  (set-SR computer (set-bit (SR computer 6) value)))
+  (set-SR computer (set-bit (SR computer) 6 value)))
 
 (defn set-SCG1 [computer value]
-  (set-SR computer (set-bit (SR computer 7) value)))
+  (set-SR computer (set-bit (SR computer) 7 value)))
 
 (defn set-V [computer value]
-  (set-bit computer (SR computer 8) value))
+  (set-SR computer (set-bit (SR computer) 8 value)))
 
 (def register-names [:pc :sp :sr :r3 :r4 :r5 :r6 :r7 :r8 :r9 :r10 :r11 :r12 :r13 :r14 :r15])
 

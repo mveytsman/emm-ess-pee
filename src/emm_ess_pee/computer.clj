@@ -60,22 +60,22 @@
   (bit-get (SR computer) 2))
 
 (defn GIE [computer]
-  (bit-get (SR computer 3)))
+  (bit-get (SR computer) 3))
 
 (defn CPUOFF [computer]
-  (bit-get (SR computer 4)))
+  (bit-get (SR computer) 4))
 
 (defn OSCOFF [computer]
-  (bit-get (SR computer 5)))
+  (bit-get (SR computer) 5))
 
 (defn SCG0 [computer]
-  (bit-get (SR computer 6)))
+  (bit-get (SR computer) 6))
 
 (defn SCG1 [computer]
-  (bit-get (SR computer 7)))
+  (bit-get (SR computer) 7))
 
 (defn V [computer]
-  (bit-get (SR computer 8)))
+  (bit-get (SR computer) 8))
 
 (defn set-C [computer value]
   (set-SR computer (set-bit (SR computer) 0 value)))

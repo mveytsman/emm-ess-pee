@@ -5,6 +5,7 @@
             [emm-ess-pee.computer :refer :all]))
 
 
+;; Do I even need this helper?
 (defn load-instructions
   "Loads instructions vector and sets the PC to their start"
   [instructions]
@@ -66,6 +67,7 @@
       (is (= (execute-instruction (binstr->int (str "000100" "000" "0" "00" "1111")) nil)
              15)))))
 
+;; TODO test edge cases like constant generation here
 (deftest get-value-test
   (testing "get-value"
     (let [register 13
@@ -90,6 +92,43 @@
           (is (= value 0x1234))
           (is (= (get-reg computer register) 0xabcf)))))))
 
-;; TODO test edge cases like constant generation here
+(deftest signle-op-test
+  (testing "single-op"
+    (let [register 13
+          computer (-> (make-computer)
+                       (set-PC 0x4402)
+                       (set-SP 0x2000)
+                       (set-words 0x2000 [0xabcd 0x1234])
+                       (set-reg register 0x00ff)
+                       (set-word 0xabcd 0x1234))
+          ;; use this function to wrap single-op for testing
+          ;; Note we are only testing direct register access here
+          single-op' (fn [op] (single-op op computer false "00" register))]
+      (testing "RPC"
+        (let [computer (single-op' :RPC)]
+          ;; Rotate right through carry
+          (is (= (get-reg computer register) 0x007f))
+          (is (= (C computer) 1))))
+      (testing "SWPB"
+        ;; Swap bytes
+        (let [computer (single-op' :SWPB)]
+          (is (= (get-reg computer register) 0xff00))))
+      (testing "RRA"
+        (let [computer (single-op' :RRA)]
+          (is (= (get-reg computer register) 0x007f))))
+      (testing "SXT"
+        (let [computer (single-op' :SXT)]
+          ;; Sign extend
+          (is (= (get-reg computer register) 0xffff))))
+      (testing "PUSH"
+        (let [computer (single-op' :PUSH)]
+          (is (= (get-word computer 0x2000) 0x00ff))
+          (is (= (SP computer) 0x1ffe))))
+      (testing "RETI"
+        (let [computer (single-op' :RETI)]
+          (is (= (SP computer) 0xabcd))
+          (is (= (PC computer) 0x1234)))))))
+
+
 
 

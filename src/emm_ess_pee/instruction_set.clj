@@ -86,13 +86,14 @@
 
 (defmethod single-op :RRA
   [_ computer byte? source-mode register]
-  (let [[value computer] (get-value computer source-mode register)]))
+  (let [[value computer] (get-value computer source-mode register)]
+    (set-reg computer register (bit-shift-right value 1))))
 
 (defmethod single-op :SXT
   [_ computer _ source-mode register]
   ;; This always puts the result in the register directly, which is a bug I believe?
   (let [[val computer] (get-value computer source-mode register)]
-    (set-reg computer (unchecked-short val))))
+    (set-reg computer register (make-word (unchecked-byte (high-byte val))))))
 
 (defmethod single-op :PUSH
   [_ computer byte? source-mode register]

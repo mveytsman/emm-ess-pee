@@ -12,20 +12,20 @@
 
 (defn set-reg
   "Sets register i to value in computer"
-  [computer reg val]
-  (assoc-in computer [:registers reg] val))
+  [computer reg value]
+  (assoc-in computer [:registers reg] value))
 
 (defn inc-reg
   "Increments register by delta (default 2)"
   ([computer reg] (inc-reg computer reg 2))
-  ([computer reg delta] (let [val (get-reg computer reg)]
-                          (set-reg computer reg (+w val delta)))))
+  ([computer reg delta] (let [value (get-reg computer reg)]
+                          (set-reg computer reg (+w value delta)))))
 
 (defn dec-reg
   "Decrements register by delta (default 2)"
   ([computer reg] (dec-reg computer reg 2))
-  ([computer reg delta] (let [val (get-reg computer reg)]
-                      (set-reg computer reg (-w val delta)))))
+  ([computer reg delta] (let [value (get-reg computer reg)]
+                      (set-reg computer reg (-w value delta)))))
 
 (defn inc-pc
   "Increments PC by delta (default 2)"
@@ -41,14 +41,14 @@
 (defn SR [computer]
   (get-reg computer 2))
 
-(defn set-PC [computer val]
-  (set-reg computer 0 val))
+(defn set-PC [computer value]
+  (set-reg computer 0 value))
 
-(defn set-SP [computer val]
-  (get-reg computer 1 val))
+(defn set-SP [computer value]
+  (set-reg computer 1 value))
 
-(defn set-SR [computer]
-  (get-reg computer 2 val))
+(defn set-SR [computer value]
+  (set-reg computer 2 value))
 
 (defn C [computer]
   (bit-get (SR computer) 0))
@@ -77,32 +77,32 @@
 (defn V [computer]
   (bit-get (SR computer 8)))
 
-(defn set-C [computer val]
-  (set-bit (SR computer) 0) val)
+(defn set-C [computer value]
+  (set-SR computer (set-bit (SR computer) 0 value)))
 
-(defn set-Z [computer val]
-  (set-bit (SR computer) 1) val)
+(defn set-Z [computer value]
+  (set-SR computer (set-bit (SR computer) 1 value)))
 
-(defn set-N [computer val]
-  (set-bit (SR computer) 2) val)
+(defn set-N [computer value]
+  (set-SR computer (set-bit (SR computer) 2 value)))
 
-(defn set-GIE [computer val]
-  (set-bit (SR computer 3)) val)
+(defn set-GIE [computer value]
+  (set-SR computer (set-bit (SR computer 3) value)))
 
-(defn set-CPUOFF [computer val]
-  (set-bit (SR computer 4)) val)
+(defn set-CPUOFF [computer value]
+  (set-SR computer (set-bit (SR computer 4) value)))
 
-(defn set-OSCOFF [computer val]
-  (set-bit (SR computer 5)) val)
+(defn set-OSCOFF [computer value]
+  (set-SR computer (set-bit (SR computer 5) value)))
 
-(defn set-SCG0 [computer val]
-  (set-bit (SR computer 6)) val)
+(defn set-SCG0 [computer value]
+  (set-SR computer (set-bit (SR computer 6) value)))
 
-(defn set-SCG1 [computer val]
-  (set-bit (SR computer 7)) val)
+(defn set-SCG1 [computer value]
+  (set-SR computer (set-bit (SR computer 7) value)))
 
-(defn set-V [computer val]
-  (set-bit (SR computer 8)) val)
+(defn set-V [computer value]
+  (set-bit computer (SR computer 8) value))
 
 (def register-names [:pc :sp :sr :r3 :r4 :r5 :r6 :r7 :r8 :r9 :r10 :r11 :r12 :r13 :r14 :r15])
 
@@ -115,10 +115,10 @@
 
 (defn set-word
   "Sets a (little-endian) word in memory to value"
-  [computer i val]
-  (let [val (little-endian val) ; not sure if I should be flipping the bytes twice here
-        hb (high-byte val)
-        lb (low-byte val)]
+  [computer i value]
+  (let [value (little-endian value) ; not sure if I should be flipping the bytes twice here
+        hb (high-byte value)
+        lb (low-byte value)]
     (-> computer
         (assoc-in [:memory i] lb)
         (assoc-in [:memory (inc i)] hb))))
@@ -126,10 +126,10 @@
 (defn set-words
   "Writes a series of words to memory starting at index"
   [computer i words]
-  (if (=  (count words) 0)
+  (if (<=  (count words) 0)
     computer
     (set-words (set-word computer i (first words))
-               (dec i)
+               (- i 2)
                (rest words))))
 
 
@@ -141,9 +141,9 @@
 
 (defn set-word-indirect
   "Sets a word at the address contained in a register to val (i.e. @Rn)"
-  [computer reg val]
+  [computer reg value]
   (let [i (int (get-reg computer reg))]
-    (set-word computer i val)))
+    (set-word computer i value)))
 
 (defn get-word-indexed
   "Returns a word at the address contained in a register at offset (i.e. offset(Rn))"
@@ -154,10 +154,10 @@
 
 (defn set-word-indexed
   "Sets a word at the address contained in a register at offset (i.e. offset(Rn))"
-  [computer reg offset val]
+  [computer reg offset value]
   (let [r (int (get-reg computer reg))
         i (int (+w r offset))]
-    (set-word computer i val)))
+    (set-word computer i value)))
 
 (defn get-word-indirect-increment
   "Returns a word at the address contained in a register and increments the register (i.e. @Rn+)"
@@ -178,7 +178,7 @@
   "Pops a value off the stack. Returns [value, computer]"
   ;; TODO: handle byte/word mode
   [computer]
-  (let [value (get-word-indirect (named-register :sp))]
+  (let [value (get-word-indirect computer (named-register :sp))]
     [value (dec-reg computer (named-register :sp))]))
 
 ;;; maybe I don't need these

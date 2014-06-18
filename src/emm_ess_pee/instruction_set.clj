@@ -53,17 +53,17 @@
   (fn [_ source-mode _] source-mode))
 (defmethod get-value "00"
   [computer _ register]
-  [computer (get-reg computer register)])
+  [(get-reg computer register) computer])
 (defmethod get-value "01"
   [computer _ register]
   (let [[offset, computer] (fetch-instruction computer)]
-    [computer (get-word-indexed computer register offset)]))
+    [(get-word-indexed computer register offset) computer]))
 (defmethod get-value "10"
   [computer _ register]
-  [computer (get-word-indexed computer register)])
+  [(get-word-indirect computer register) computer])
 (defmethod get-value "11"
   [computer _ register]
-  [(inc-reg computer register) (get-word-indirect computer register)])
+  [(get-word-indirect computer register) (inc-reg computer register) ])
 
 (defmulti single-op (fn [op _ _ _ _] op))
 
@@ -130,7 +130,7 @@
             byte? (= byte? "1")
             register (binstr->int register)]
         (single-op op computer byte? source-mode register))
-      (if-let [[_ condition offset] (re-matches #"001([01]{3}[01]{10})")]
+      (if-let [[_ condition offset] (re-matches #"001([01]{3}[01]{10})" wrd)]
         (let [cnd (get condition-codes condition)
               offset (binstr->int offset)]
           (perform-jump computer cnd offset))

@@ -1,6 +1,10 @@
 (ns emm-ess-pee.computer
   (:use emm-ess-pee.binary-utils))
 
+(defn make-computer []
+  {:registers (vec (repeat 16 (make-word 0)))
+   :memory (vec (repeat 64000 (make-byte 0)))})
+
 (defn get-reg
   "Returns value register reg from a computer"
   [computer i]
@@ -100,6 +104,10 @@
 (defn set-V [computer val]
   (set-bit (SR computer 8)) val)
 
+(def register-names [:pc :sp :sr :r3 :r4 :r5 :r6 :r7 :r8 :r9 :r10 :r11 :r12 :r13 :r14 :r15])
+
+(def named-register (zipmap register-names (range)))
+
 (defn get-word
   "Returns a (little-endian) word from memory at index i"
   [computer i]
@@ -114,6 +122,15 @@
     (-> computer
         (assoc-in [:memory i] lb)
         (assoc-in [:memory (inc i)] hb))))
+
+(defn set-words
+  "Writes a series of words to memory starting at index"
+  [computer i words]
+  (if (=  (count words) 0)
+    computer
+    (set-words (set-word computer i (first words))
+               (dec i)
+               (rest words))))
 
 
 (defn get-word-indirect
@@ -165,12 +182,4 @@
     [value (dec-reg computer (named-register :sp))]))
 
 ;;; maybe I don't need these
-
-(def register-names [:pc :sp :sr :r3 :r4 :r5 :r6 :r7 :r8 :r9 :r10 :r11 :r12 :r13 :r14 :r15])
-
-(def named-register (zipmap register-names (range)))
-
-(def status-bit-names [:gc :z :n :gie :cpuoff :oscoff :scg0 :scg1 :v])
-
-(def status-bit-index (zipmap status-bit-names (range)))
 

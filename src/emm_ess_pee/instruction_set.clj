@@ -45,9 +45,9 @@
                  :JNC #(= (C %) 0)
                  :JC  #(= (C %) 1)
                  :JN  #(= (N %) 1)
-                 :JGE #(= (N %) (V %))
-                 :JL  #(not= (N %) (V %))
-                 :JMP #(true)})
+                 :JGE #(= (N %1) (V %1))
+                 :JL  #(not= (N %1) (V %1))
+                 :JMP (constantly true)})
 (defmulti get-value
   "A multimethod for a getter that dispatches on address mode. Returns [value, computer]"
   (fn [_ source-mode _] source-mode))
@@ -119,7 +119,7 @@
         (set-PC pc)
         (set-SP sp))))
 
-(defn perform-jmp [computer cnd offset]
+(defn perform-jmp [cnd computer offset]
   (let [pc (PC computer)]
     (if ((cnd conditions) computer)
       (set-PC computer (+w pc offset))
@@ -137,7 +137,7 @@
       (if-let [[_ condition offset] (re-matches #"001([01]{3})([01]{10})$" wrd)]
         (let [cnd (get condition-codes condition)
               offset (binstr->int offset)]
-          (perform-jmp computer cnd offset))
+          (perform-jmp cnd computer offset))
         
         "NOPE"))))
 

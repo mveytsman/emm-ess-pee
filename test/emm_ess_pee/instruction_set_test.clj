@@ -77,7 +77,7 @@
 (deftest jmp-parsing-test
   (testing "jmp parsing"
     ;; Redef to return condition symbol
-    (with-redefs [perform-jmp (fn [_ cnd _] cnd)]
+    (with-redefs [perform-jmp (fn [cnd _ _] cnd)]
       (testing "JNE"
         (is (= (parse-test (str "001" "000" "0000000000")) :JNE)))
       (testing "JEQ"
@@ -171,4 +171,54 @@
           (let [computer (single-op-byte :PUSH)]
             (is (= (get-word computer 0x2000) 0x00ff))
             (is (= (SP computer) 0x1ffe))))))))
+
+
+(deftest perform-jmo
+  (testing "perform-jmp"
+    (let [old-pc 0x4402
+          new-pc 0x4502
+          computer (-> (make-computer)
+                       (set-PC 0x4402))
+          ;; Wrapper for testing
+          perform-jmp' (fn [op computer] (perform-jmp op computer 0x100))]
+      (testing "JNE"
+        (is (= (PC (perform-jmp' :JNE (set-Z computer 0)))
+               new-pc))
+        (is (= (PC (perform-jmp' :JNE (set-Z computer 1)))
+               old-pc)))
+      (testing "JEQ"
+        (is (= (PC (perform-jmp' :JEQ (set-Z computer 0)))
+               old-pc))
+        (is (= (PC (perform-jmp' :JEQ (set-Z computer 1)))
+               new-pc)))
+      (testing "JNC"
+        (is (= (PC (perform-jmp' :JNC (set-C computer 0)))
+               new-pc))
+        (is (= (PC (perform-jmp' :JNC (set-C computer 1)))
+               old-pc)))
+      (testing "JC"
+        (is (= (PC (perform-jmp' :JC (set-C computer 0)))
+               old-pc))
+        (is (= (PC (perform-jmp' :JC (set-C computer 1)))
+               new-pc)))
+      (testing "JN"
+        (is (= (PC (perform-jmp' :JN (set-N computer 0)))
+               old-pc))
+        (is (= (PC (perform-jmp' :JN (set-N computer 1)))
+               new-pc)))
+      (testing "JGE"
+        (is (= (PC (perform-jmp' :JGE  (-> (set-N computer 1) (set-V 1))))
+               new-pc))
+        (is (= (PC (perform-jmp' :JGE (-> (set-N computer 1) (set-V 0))))
+               old-pc)))
+      (testing "JL"
+        (is (= (PC (perform-jmp' :JL (-> (set-N computer 0) (set-V 0))))
+               old-pc))
+        (is (= (PC (perform-jmp' :JL (-> (set-N computer 1) (set-V 0))))
+               new-pc)))
+      (testing "JMP"
+        (is (= (PC (perform-jmp' :JMP computer))
+               new-pc))))))
+
+
 

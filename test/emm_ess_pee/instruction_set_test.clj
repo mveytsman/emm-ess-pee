@@ -165,20 +165,50 @@
                        (set-reg register 0xabcd)
                        (set-word 0xabcd 0x1234)
                        (set-word 0xabcf 0x5678))]
+      (testing "word mode"
+        (testing "register-direct mode"
+          (let [[value computer] (get-value computer :direct false register)]
+            (is (= value 0xabcd))))
+        (testing "register-indexed mode"
+          (let [[value computer] (get-value computer :indexed false register)]
+            (is (= value 0x5678))
+            (is (= (PC computer) 0x4404))))
+        (testing "register-indirect mode"
+          (let [[value computer] (get-value computer :indirect false register)]
+            (is (= value 0x1234))))
+        (testing "register-indirect-with-post-increment mode"
+          (let [[value computer] (get-value computer :indirect-increment false register)]
+            (is (= value 0x1234))
+            (is (= (get-reg computer register) 0xabcf)))))
+      
+      (testing "byte mode"
+        (testing "register-direct mode"
+          (let [[value computer] (get-value computer :direct true register)]
+            (is (= value 0xcd))))
+        (testing "register-indexed mode"
+          (let [[value computer] (get-value computer :indexed true register)]
+            (is (= value 0x78))
+            (is (= (PC computer) 0x4404))))
+        (testing "register-indirect mode"
+          (let [[value computer] (get-value computer :indirect true register)]
+            (is (= value 0x34))))
+        (testing "register-indirect-with-post-increment mode"
+          (let [[value computer] (get-value computer :indirect-increment true register)]
+            (is (= value 0x34))
+            (is (= (get-reg computer register) 0xabcf))))))))
+
+(deftest set-value-test
+  (testing "set-value"
+    (let [register 13
+          computer (-> (make-computer)
+                       (set-reg register 0x4402)
+                       (set-word 0x4402 0x02))]
       (testing "register-direct mode"
-        (let [[value computer] (get-value computer :direct register)]
-          (is (= value 0xabcd))))
-      (testing "register-indexed mode"
-        (let [[value computer] (get-value computer :indexed register)]
-          (is (= value 0x5678))
-          (is (= (PC computer) 0x4404))))
+        (let [computer (set-value computer :direct false register 0xabcd)]
+          (is (= (get-reg computer register) 0xabcd))))
       (testing "register-indirect mode"
-        (let [[value computer] (get-value computer :indirect register)]
-          (is (= value 0x1234))))
-      (testing "register-indirect-with-post-increment mode"
-        (let [[value computer] (get-value computer :indirect-increment register)]
-          (is (= value 0x1234))
-          (is (= (get-reg computer register) 0xabcf)))))))
+        (let [computer (set-value computer :indirect false register 0xabcd)]
+          (is (= (get-word computer 0x4402) 0xabcd)))))))
 
 (deftest signle-op-test
   (testing "single-op"
@@ -191,8 +221,8 @@
                        (set-word 0xabcd 0x1234))
           ;; use these function to wrap single-op for testing
           ;; Note we are only testing direct register access here
-          single-op-word (fn [op] (single-op op computer false "00" register))
-          single-op-byte (fn [op] (single-op op computer  true "00" register))]
+          single-op-word (fn [op] (single-op op computer false :direct register))
+          single-op-byte (fn [op] (single-op op computer  true :direct register))]
       (testing "word forms of OPs"
         (testing "RPC"
           (let [computer (single-op-word :RPC)]
@@ -281,3 +311,65 @@
 
 
 
+(deftest dual-op-test
+  (testing "dual-op"
+    (let [register1 12
+          register2 13
+          computer (-> (make-computer)
+                       (set-C 1)
+                       (set-reg register1 0xaaff)
+                       (set-reg register2 0xbbe1))
+          ;; use these function to wrap single-op for testing
+          ;; Note we are only testing direct register access here
+          dual-op-word (fn [op] (dual-op op computer false :direct register1 :direct register2))
+          dual-op-byte (fn [op] (dual-op op computer true :direct register1 :direct register2))]
+      (testing "MOV"
+        (testing "word-mode"
+          (let [computer (dual-op-word :MOV)]
+            (is (= (get-reg computer register2) 0xaaff))))
+        (testing "byte-mode"
+          (let [computer (dual-op-byte :MOV)]
+            (is (= (get-reg computer register2) 0x00ff)))))
+      
+      (testing "ADD"
+        (testing "word-mode"
+          (let [computer (dual-op-word :ADD)]
+            (is (= (get-reg computer register2) 0x66e0))))
+        (testing "byte-mode"
+          (let [computer (dual-op-byte :ADD)]
+            (is (= (get-reg computer register2) 0xe0)))))
+
+      (testing "ADDC"
+        (testing "word-mode"
+          (let [computer (dual-op-word :ADDC)]
+            (is (= (get-reg computer register2) 0x66e1))))
+        (testing "byte-mode"
+          (let [computer (dual-op-byte :ADDC)]
+            (is (= (get-reg computer register2) 0xe1)))))
+
+
+      (testing "SUBC"
+        (testing "word-mode"
+          (let [computer (dual-op-word :SUBC)]
+            (is (= (get-reg computer register2) 0x10e2))))
+        (testing "byte-mode"
+          (let [computer (dual-op-byte :SUBC)]
+            (is (= (get-reg computer register2) 0xe2)))))
+
+
+      (testing "SUB"
+        ;; this is the same as SUBC because the carry bit is 1
+        (testing "word-mode"
+          (let [computer (dual-op-word :SUB)]
+            (is (= (get-reg computer register2) 0x10e2))))
+        (testing "byte-mode"
+          (let [computer (dual-op-byte :SUB)]
+            (is (= (get-reg computer register2) 0xe2)))))
+
+      (testing "ADDC"
+        (testing "word-mode"
+          (let [computer (dual-op-word :ADDC)]
+            (is (= (get-reg computer register2) 0x66e1))))
+        (testing "byte-mode"
+          (let [computer (dual-op-byte :ADDC)]
+            (is (= (get-reg computer register2) 0xe1))))))))

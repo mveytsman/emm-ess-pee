@@ -59,20 +59,42 @@
 
 (defmulti get-value
   "A multimethod for a getter that dispatches on address mode. Returns [value, computer]"
-  (fn [_ source-mode _] source-mode))
+  (fn [_ source-mode _ _] source-mode))
 (defmethod get-value :direct
-  [computer _ register]
-  [(get-reg computer register) computer])
+  [computer _ byte? register]
+  (let [value (get-reg computer register)
+        value (if byte?
+                (high-byte value)
+                value)]
+    [value computer]))
 (defmethod get-value :indexed
-  [computer _ register]
-  (let [[offset, computer] (fetch-instruction computer)]
-    [(get-word-indexed computer register offset) computer]))
+  [computer _ byte? register]
+  (let [[offset, computer] (fetch-instruction computer)
+        value (get-word-indexed computer register offset)
+        value (if byte?
+                (high-byte value)
+                value)]
+    [value computer]))
 (defmethod get-value :indirect
-  [computer _ register]
-  [(get-word-indirect computer register) computer])
+  [computer _ byte? register]
+  (let [value (get-word-indirect computer register)
+        value (if byte? (high-byte value) value)]
+    [value  computer]))
 (defmethod get-value :indirect-increment
-  [computer _ register]
-  [(get-word-indirect computer register) (inc-reg computer register) ])
+  [computer _ byte? register]
+  (let [value (get-word-indirect computer register)
+        value (if byte? (high-byte value) value)]
+    [value (inc-reg computer register)]))
+
+(defmulti set-value
+  "A multimethod for a setter that dispatches on address mode."
+  (fn [_ dest-mode _ _ _] dest-mode))
+(defmethod set-value :direct
+  [computer _ byte? register value]
+  (set-reg computer register (if byte? (high-byte value) value)))
+(defmethod set-value :indirect
+  [computer _ byte? register value]
+  (set-word computer (get-reg computer register) (if byte? (high-byte value) value)))
 
 ;; single-op is a multimethod that performs a single operand OP. OP is parameterized
 ;; by the first argument (a symbol)
@@ -80,8 +102,7 @@
 (defmulti single-op (fn [op _ _ _ _] op))
 (defmethod single-op :RPC
   [_ computer byte? source-mode register]
-  (let [[val computer] (get-value computer source-mode register)
-        val (if byte? (high-byte val) val)
+  (let [[val computer] (get-value computer source-mode byte? register)
         high-bit (if byte? 7 15)
         c (C computer)
         new-c (bit-get val 0)
@@ -92,29 +113,27 @@
 
 (defmethod single-op :SWPB
   [_ computer _ source-mode register]
-  (let [[value computer] (get-value computer source-mode register)]
+  (let [[value computer] (get-value computer source-mode false register)]
     (set-reg computer register (little-endian value))))
 
 (defmethod single-op :RRA
   [_ computer byte? source-mode register]
-  (let [[value computer] (get-value computer source-mode register)
-        value (if byte? (high-byte value) value)]
+  (let [[value computer] (get-value computer source-mode byte? register)]
     (set-reg computer register (make-word (bit-shift-right value 1)))))
 
 (defmethod single-op :SXT
   [_ computer _ source-mode register]
-  (let [[val computer] (get-value computer source-mode register)]
+  (let [[val computer] (get-value computer source-mode false register)]
     (set-reg computer register (make-word (unchecked-byte (high-byte val))))))
 
 (defmethod single-op :PUSH
   [_ computer byte? source-mode register]
-  (let [[val computer] (get-value computer source-mode register)
-        val (if byte? (high-byte val) val)]
+  (let [[val computer] (get-value computer source-mode byte? register)]
     (stack-push computer (make-word val))))
 
 (defmethod single-op :CALL
   [_ computer _ source-mode register]
-  (let [[val computer] (get-value computer source-mode register)]
+  (let [[val computer] (get-value computer source-mode false register)]
     (-> computer
         (set-word-indirect (named-register :sp) val)
         (dec-reg (named-register :sp))
@@ -138,25 +157,52 @@
 ;; by the first argument (a symbol)
 (defmulti dual-op (fn [op _ _ _ _ _ _] op))
 (defmethod dual-op :MOV
-  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+  [_ computer byte? source-mode source-reg dest-mode dest-reg]
+  (let [[val computer] (get-value computer source-mode byte? source-reg)]
+    (set-value computer dest-mode byte? dest-reg (make-word val))))
 (defmethod dual-op :ADD
-  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+  [_ computer byte? source-mode source-reg dest-mode dest-reg]
+  (let [[src computer] (get-value computer source-mode byte? source-reg)
+        [dst computer] (get-value computer dest-mode byte? dest-reg)
+        result (+w src dst)
+        result (if byte? (high-byte result) result)]
+    (set-value computer dest-mode byte? dest-reg result)))
 (defmethod dual-op :ADDC
-  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+  [_ computer byte? source-mode source-reg dest-mode dest-reg]
+  (let [[src computer] (get-value computer source-mode byte? source-reg)
+        [dst computer] (get-value computer dest-mode byte? dest-reg)
+        c (C computer)
+        result (+w src dst c)
+        result (if byte? (high-byte result) result)]
+    (set-value computer dest-mode byte? dest-reg result)))
 (defmethod dual-op :SUBC
-  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+  [_ computer byte? source-mode source-reg dest-mode dest-reg]
+  (let [[src computer] (get-value computer source-mode byte? source-reg)
+        src (if byte? (make-byte (bit-not src)) (make-word (bit-not src)))
+        [dst computer] (get-value computer dest-mode byte? dest-reg)
+        c (C computer)
+        result (+w src dst c)
+        result (if byte? (high-byte result) result)]
+    (set-value computer dest-mode byte? dest-reg result)))
 (defmethod dual-op :SUB
-  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+  [_ computer byte? source-mode source-reg dest-mode dest-reg]
+  (let [[src computer] (get-value computer source-mode byte? source-reg)
+        [dst computer] (get-value computer dest-mode byte? dest-reg)
+        result (if byte? (-b dst src) (-w dst src))]
+    (set-value computer dest-mode byte? dest-reg result)))
+
 (defmethod dual-op :CMP
-  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+  [_ computer byte? source-mode source-reg dest-mode dest-reg])
 (defmethod dual-op :DADD
-  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+  [_ computer byte? source-mode source-reg dest-mode dest-reg])
 (defmethod dual-op :BIT
-  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+  [_ computer byte? source-mode source-reg dest-mode dest-reg])
+(defmethod dual-op :BIS
+  [_ computer byte? source-mode source-reg dest-mode dest-reg])
 (defmethod dual-op :XOR
-  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+  [_ computer byte? source-mode source-reg dest-mode dest-reg])
 (defmethod dual-op :AND
-  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+  [_ computer byte? source-mode source-reg dest-mode dest-reg])
 
 
 

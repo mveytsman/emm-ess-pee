@@ -18,6 +18,9 @@
 (def +w (comp make-word +))
 (def -w (comp make-word -))
 (def *w (comp make-word *))
+(def +b (comp make-byte +))
+(def -b (comp make-byte -))
+(def *b (comp make-byte *))
 (defn little-endian
   "Flips the two bytes of wrd, i.e. abcd becomes cdab"
   [wrd]

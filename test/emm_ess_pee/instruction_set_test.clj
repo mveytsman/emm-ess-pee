@@ -43,6 +43,7 @@
       (testing "RETI"
         (is (= (parse-test (str "000100" "110" "0000000"))
                :RETI)))))
+
   (testing "byte/word mode parsing"
     (with-redefs [single-op (fn [_ _ byte? _ _] byte?)]
       (testing "word mode"
@@ -64,6 +65,7 @@
       (testing "register-indirect-with-post-increment mode"
         (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
                "00")))))
+
   (testing "register parsing"
     (with-redefs [single-op (fn [_ _ _ _ register] register)]
       (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
@@ -72,7 +74,6 @@
              1))
       (is (= (parse-test (str "000100" "000" "0" "00" "1111"))
              15)))))
-
 
 (deftest jmp-parsing-test
   (testing "jmp parsing"
@@ -94,6 +95,64 @@
         (is (= (parse-test (str "001" "110" "0000000000")) :JL)))
       (testing "JMP"
         (is (= (parse-test (str "001" "111" "0000000000")) :JMP))))))
+
+
+(deftest dual-op-parsing-test
+  (testing "dual op parsing"
+    ;; Redef to return condition symbol
+    (with-redefs [dual-op (fn [op _ _ _ _ _ _] op)]
+      (testing "MOV"
+        (is (= (parse-test (str "0100" "000000000000")) :MOV)))
+      (testing "ADD"
+        (is (= (parse-test (str "0101" "000000000000")) :ADD)))
+      (testing "ADDC"
+        (is (= (parse-test (str "0110" "000000000000")) :ADDC)))
+      (testing "SUBC"
+        (is (= (parse-test (str "0111" "000000000000")) :SUBC)))
+      (testing "SUB"
+        (is (= (parse-test (str "1000" "000000000000")) :SUB)))
+      (testing "CMP"
+        (is (= (parse-test (str "1001" "000000000000")) :CMP)))
+      (testing "DADD"
+        (is (= (parse-test (str "1010" "000000000000")) :DADD)))
+      (testing "BIT"
+        (is (= (parse-test (str "1100" "000000000000")) :BIT)))
+      (testing "BIS"
+        (is (= (parse-test (str "1101" "000000000000")) :BIS)))
+      (testing "XOR"
+        (is (= (parse-test (str "1110" "000000000000")) :XOR)))
+      (testing "AND"
+        (is (= (parse-test (str "1111" "000000000000")) :AND)))))
+  (testing "byte/word parsing"
+    (with-redefs [dual-op (fn [_ _ byte? _ _ _ _] byte?)]
+      (testing "word-mode"
+        (is (= (parse-test (str "0100" "00000" "0" "000000")) false)))
+      (testing "byte-mode"
+        (is (= (parse-test (str "0100" "00000" "1" "000000")) true)))))
+  (testing "source-mode parsing"
+    (with-redefs [dual-op (fn [_ _ _ source-mode _ _ _] source-mode)]
+      (testing "word-mode"
+        (is (= (parse-test (str "0100000000" "00" "0000")) "00")))
+      (testing "byte-mode"
+        (is (= (parse-test (str "0100000000" "01" "0000")) "01")))
+      (testing "word-mode"
+        (is (= (parse-test (str "0100000000" "10" "0000")) "10")))
+      (testing "byte-mode"
+        (is (= (parse-test (str "0100000000" "11" "0000")) "11")))))
+  (testing "source register parsing"
+    (with-redefs [dual-op (fn [_ _ _ _ source-reg _ _] source-reg)]
+      (is (= (parse-test (str "0100" "0000" "00000000")) 0))
+      (is (= (parse-test (str "0100" "0001" "00000000")) 1))
+      (is (= (parse-test (str "0100" "1111" "00000000")) 15))))
+  (testing "dest-mode paring"
+    (with-redefs [dual-op (fn [_ _ _ _ _ dest-mode _] dest-mode)]
+      (is (= (parse-test (str "01000000" "0" "0000000")) "0"))
+      (is (= (parse-test (str "01000000" "1" "0000000")) "1"))))
+  (testing "dest register parsing"
+    (with-redefs [dual-op (fn [_ _ _ _ _ _ dest-reg] dest-reg)]
+      (is (= (parse-test (str "010000000000" "0000")) 0))
+      (is (= (parse-test (str "010000000000" "0001")) 1))
+      (is (= (parse-test (str "010000000000" "1111")) 15)))))
 
 
 ;; TODO test edge cases like constant generation here
@@ -173,7 +232,7 @@
             (is (= (SP computer) 0x1ffe))))))))
 
 
-(deftest perform-jmo
+(deftest perform-jmp-test
   (testing "perform-jmp"
     (let [old-pc 0x4402
           new-pc 0x4502

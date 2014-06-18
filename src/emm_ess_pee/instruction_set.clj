@@ -27,17 +27,17 @@
                       "110" :JL
                       "111" :JMP})
 
-(def double-op-codes {"0100" :MOV
-                      "0101" :ADD
-                      "0110" :ADDC
-                      "0111" :SUBC
-                      "1000" :SUB
-                      "1001" :CMP
-                      "1010" :DADD
-                      "1100" :BIT
-                      "1101" :BIS
-                      "1110" :XOR
-                      "1111" :AND})
+(def dual-op-codes {"0100" :MOV
+                    "0101" :ADD
+                    "0110" :ADDC
+                    "0111" :SUBC
+                    "1000" :SUB
+                    "1001" :CMP
+                    "1010" :DADD
+                    "1100" :BIT
+                    "1101" :BIS
+                    "1110" :XOR
+                    "1111" :AND})
 
 
 (def conditions {:JNE #(= (Z %) 0)
@@ -125,21 +125,54 @@
       (set-PC computer (+w pc offset))
       computer)))
 
+;; dual-op is a multimethod that performs a single operand OP. OP is parameterized
+;; by the first argument (a symbol)
+(defmulti dual-op (fn [op _ _ _ _ _ _] op))
+(defmethod dual-op :MOV
+  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+(defmethod dual-op :ADD
+  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+(defmethod dual-op :ADDC
+  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+(defmethod dual-op :SUBC
+  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+(defmethod dual-op :SUB
+  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+(defmethod dual-op :CMP
+  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+(defmethod dual-op :DADD
+  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+(defmethod dual-op :BIT
+  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+(defmethod dual-op :XOR
+  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+(defmethod dual-op :AND
+  [_ computer byte? souce-mode source-reg dest-mode dest-reg])
+
+
 
 
 (defn execute-instruction [wrd computer]
   (let [wrd (int->binstr wrd)]
+    ;; Matches single operand instruction
     (if-let [[_ opcode byte? source-mode register] (re-matches #"^000100([01]{3})([01])([01]{2})([01]{4})$" wrd)]
       (let [ op (get single-op-codes opcode)
             byte? (= byte? "1")
             register (binstr->int register)]
         (single-op op computer byte? source-mode register))
+      ;; Matches jmp instruction
       (if-let [[_ condition offset] (re-matches #"001([01]{3})([01]{10})$" wrd)]
         (let [cnd (get condition-codes condition)
               offset (binstr->int offset)]
           (perform-jmp cnd computer offset))
-        
-        "NOPE"))))
+        ;; Matches dual operand instruction
+        (if-let [[_ opcode source-reg dest-mode byte? source-mode dest-reg ] (re-matches #"([01]{4})([01]{4})([01])([01])([01]{2})([01]{4})$" wrd)]
+          (let [op (get dual-op-codes opcode)
+                source-reg (binstr->int source-reg)
+                byte? (= byte? "1")
+                dest-reg (binstr->int dest-reg)]
+            (dual-op op computer byte? source-mode source-reg dest-mode dest-reg))
+          "NOPE")))))
 
 
 (defn do-stuff [computer]

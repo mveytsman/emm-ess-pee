@@ -55,16 +55,16 @@
     (with-redefs [single-op (fn [_ _ _ source-mode  _] source-mode)]
       (testing "register-direct mode"
         (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
-               "00")))
+               :direct)))
       (testing "register-indexed mode"
-        (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
-               "00")))
+        (is (= (parse-test (str "000100" "000" "0" "01" "0000"))
+               :indexed)))
       (testing "register-indirect mode"
-        (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
-               "00")))
+        (is (= (parse-test (str "000100" "000" "0" "10" "0000"))
+               :indirect)))
       (testing "register-indirect-with-post-increment mode"
-        (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
-               "00")))))
+        (is (= (parse-test (str "000100" "000" "0" "11" "0000"))
+               :indirect-increment)))))
 
   (testing "register parsing"
     (with-redefs [single-op (fn [_ _ _ _ register] register)]
@@ -132,22 +132,22 @@
   (testing "source-mode parsing"
     (with-redefs [dual-op (fn [_ _ _ source-mode _ _ _] source-mode)]
       (testing "word-mode"
-        (is (= (parse-test (str "0100000000" "00" "0000")) "00")))
+        (is (= (parse-test (str "0100000000" "00" "0000")) :direct)))
       (testing "byte-mode"
-        (is (= (parse-test (str "0100000000" "01" "0000")) "01")))
+        (is (= (parse-test (str "0100000000" "01" "0000")) :indexed)))
       (testing "word-mode"
-        (is (= (parse-test (str "0100000000" "10" "0000")) "10")))
+        (is (= (parse-test (str "0100000000" "10" "0000")) :indirect)))
       (testing "byte-mode"
-        (is (= (parse-test (str "0100000000" "11" "0000")) "11")))))
+        (is (= (parse-test (str "0100000000" "11" "0000")) :indirect-increment)))))
   (testing "source register parsing"
     (with-redefs [dual-op (fn [_ _ _ _ source-reg _ _] source-reg)]
       (is (= (parse-test (str "0100" "0000" "00000000")) 0))
       (is (= (parse-test (str "0100" "0001" "00000000")) 1))
       (is (= (parse-test (str "0100" "1111" "00000000")) 15))))
-  (testing "dest-mode paring"
+  (testing "dest-mode parsing"
     (with-redefs [dual-op (fn [_ _ _ _ _ dest-mode _] dest-mode)]
-      (is (= (parse-test (str "01000000" "0" "0000000")) "0"))
-      (is (= (parse-test (str "01000000" "1" "0000000")) "1"))))
+      (is (= (parse-test (str "01000000" "0" "0000000")) :direct))
+      (is (= (parse-test (str "01000000" "1" "0000000")) :indirect))))
   (testing "dest register parsing"
     (with-redefs [dual-op (fn [_ _ _ _ _ _ dest-reg] dest-reg)]
       (is (= (parse-test (str "010000000000" "0000")) 0))
@@ -166,17 +166,17 @@
                        (set-word 0xabcd 0x1234)
                        (set-word 0xabcf 0x5678))]
       (testing "register-direct mode"
-        (let [[value computer] (get-value computer "00" register)]
+        (let [[value computer] (get-value computer :direct register)]
           (is (= value 0xabcd))))
       (testing "register-indexed mode"
-        (let [[value computer] (get-value computer "01" register)]
+        (let [[value computer] (get-value computer :indexed register)]
           (is (= value 0x5678))
           (is (= (PC computer) 0x4404))))
       (testing "register-indirect mode"
-        (let [[value computer] (get-value computer "10" register)]
+        (let [[value computer] (get-value computer :indirect register)]
           (is (= value 0x1234))))
       (testing "register-indirect-with-post-increment mode"
-        (let [[value computer] (get-value computer "11" register)]
+        (let [[value computer] (get-value computer :indirect-increment register)]
           (is (= value 0x1234))
           (is (= (get-reg computer register) 0xabcf)))))))
 

@@ -48,20 +48,29 @@
                  :JGE #(= (N %1) (V %1))
                  :JL  #(not= (N %1) (V %1))
                  :JMP (constantly true)})
+
+(def source-modes {"00" :direct
+                   "01" :indexed
+                   "10" :indirect
+                   "11" :indirect-increment})
+
+(def dest-modes {"0" :direct
+                 "1" :indirect})
+
 (defmulti get-value
   "A multimethod for a getter that dispatches on address mode. Returns [value, computer]"
   (fn [_ source-mode _] source-mode))
-(defmethod get-value "00"
+(defmethod get-value :direct
   [computer _ register]
   [(get-reg computer register) computer])
-(defmethod get-value "01"
+(defmethod get-value :indexed
   [computer _ register]
   (let [[offset, computer] (fetch-instruction computer)]
     [(get-word-indexed computer register offset) computer]))
-(defmethod get-value "10"
+(defmethod get-value :indirect
   [computer _ register]
   [(get-word-indirect computer register) computer])
-(defmethod get-value "11"
+(defmethod get-value :indirect-increment
   [computer _ register]
   [(get-word-indirect computer register) (inc-reg computer register) ])
 
@@ -157,6 +166,7 @@
     ;; Matches single operand instruction
     (if-let [[_ opcode byte? source-mode register] (re-matches #"^000100([01]{3})([01])([01]{2})([01]{4})$" wrd)]
       (let [ op (get single-op-codes opcode)
+            source-mode (source-modes source-mode)
             byte? (= byte? "1")
             register (binstr->int register)]
         (single-op op computer byte? source-mode register))
@@ -168,8 +178,10 @@
         ;; Matches dual operand instruction
         (if-let [[_ opcode source-reg dest-mode byte? source-mode dest-reg ] (re-matches #"([01]{4})([01]{4})([01])([01])([01]{2})([01]{4})$" wrd)]
           (let [op (get dual-op-codes opcode)
+                source-mode (source-modes source-mode)
                 source-reg (binstr->int source-reg)
                 byte? (= byte? "1")
+                dest-mode (dest-modes dest-mode)
                 dest-reg (binstr->int dest-reg)]
             (dual-op op computer byte? source-mode source-reg dest-mode dest-reg))
           "NOPE")))))

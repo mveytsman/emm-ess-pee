@@ -13,59 +13,88 @@
       (set-words 0x4400 instructions)
       (set-PC 0x4400)))
 
+(defn parse-test
+  "helper function to wrap execute-instruction"
+  [instruction] (execute-instruction (binstr->int instruction) nil))
+
 (deftest single-op-parsing-test
+  
   (testing "op parsing"
+    ;; This redef just gives us back the op symbol (instead of executing the op)
     (with-redefs [single-op (fn [op _ _ _ _] op)]
       (testing "RPC"
-        (is (= (execute-instruction (binstr->int (str "000100" "000" "0000000")) nil)
+        (is (= (parse-test (str "000100" "000" "0000000"))
                :RPC)))
       (testing "SWPB"
-        (is (= (execute-instruction (binstr->int (str "000100" "001" "0000000")) nil)
+        (is (= (parse-test (str "000100" "001" "0000000"))
                :SWPB)))
       (testing "RRA"
-        (is (= (execute-instruction (binstr->int (str "000100" "010" "0000000")) nil)
+        (is (= (parse-test (str "000100" "010" "0000000"))
                :RRA)))
       (testing "SXT"
-        (is (= (execute-instruction (binstr->int (str "000100" "011" "0000000")) nil)
+        (is (= (parse-test (str "000100" "011" "0000000"))
                :SXT)))
       (testing "PUSH"
-        (is (= (execute-instruction (binstr->int (str "000100" "100" "0000000")) nil)
+        (is (= (parse-test (str "000100" "100" "0000000"))
                :PUSH)))
       (testing "CALL"
-        (is (= (execute-instruction (binstr->int (str "000100" "101" "0000000")) nil)
+        (is (= (parse-test (str "000100" "101" "0000000"))
                :CALL)))
       (testing "RETI"
-        (is (= (execute-instruction (binstr->int (str "000100" "110" "0000000")) nil)
+        (is (= (parse-test (str "000100" "110" "0000000"))
                :RETI)))))
   (testing "byte/word mode parsing"
     (with-redefs [single-op (fn [_ _ byte? _ _] byte?)]
       (testing "word mode"
-        (is (false? (execute-instruction (binstr->int (str "000100" "000" "0" "000000")) nil))))
+        (is (false? (parse-test (str "000100" "000" "0" "000000")))))
       (testing "byte mode"
-        (is (true?  (execute-instruction (binstr->int (str "000100" "000" "1" "000000")) nil))))))
+        (is (true?  (parse-test (str "000100" "000" "1" "000000")))))))
 
   (testing "source-mode parsing"
     (with-redefs [single-op (fn [_ _ _ source-mode  _] source-mode)]
       (testing "register-direct mode"
-        (is (= (execute-instruction (binstr->int (str "000100" "000" "0" "00" "0000")) nil)
+        (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
                "00")))
       (testing "register-indexed mode"
-        (is (= (execute-instruction (binstr->int (str "000100" "000" "0" "00" "0000")) nil)
+        (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
                "00")))
       (testing "register-indirect mode"
-        (is (= (execute-instruction (binstr->int (str "000100" "000" "0" "00" "0000")) nil)
+        (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
                "00")))
       (testing "register-indirect-with-post-increment mode"
-        (is (= (execute-instruction (binstr->int (str "000100" "000" "0" "00" "0000")) nil)
+        (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
                "00")))))
   (testing "register parsing"
     (with-redefs [single-op (fn [_ _ _ _ register] register)]
-      (is (= (execute-instruction (binstr->int (str "000100" "000" "0" "00" "0000")) nil)
+      (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
              0))
-      (is (= (execute-instruction (binstr->int (str "000100" "000" "0" "00" "0001")) nil)
+      (is (= (parse-test (str "000100" "000" "0" "00" "0001"))
              1))
-      (is (= (execute-instruction (binstr->int (str "000100" "000" "0" "00" "1111")) nil)
+      (is (= (parse-test (str "000100" "000" "0" "00" "1111"))
              15)))))
+
+
+(deftest jmp-parsing-test
+  (testing "jmp parsing"
+    ;; Redef to return condition symbol
+    (with-redefs [perform-jmp (fn [_ cnd _] cnd)]
+      (testing "JNE"
+        (is (= (parse-test (str "001" "000" "0000000000")) :JNE)))
+      (testing "JEQ"
+        (is (= (parse-test (str "001" "001" "0000000000")) :JEQ)))
+      (testing "JNC"
+        (is (= (parse-test (str "001" "010" "0000000000")) :JNC)))
+      (testing "JC"
+        (is (= (parse-test (str "001" "011" "0000000000")) :JC)))
+      (testing "NC"
+        (is (= (parse-test (str "001" "100" "0000000000")) :NC)))
+      (testing "JGE"
+        (is (= (parse-test (str "001" "101" "0000000000")) :JGE)))
+      (testing "JL"
+        (is (= (parse-test (str "001" "110" "0000000000")) :JL)))
+      (testing "JMP"
+        (is (= (parse-test (str "001" "111" "0000000000")) :JMP))))))
+
 
 ;; TODO test edge cases like constant generation here
 (deftest get-value-test
@@ -99,36 +128,47 @@
                        (set-PC 0x4402)
                        (set-SP 0x2000)
                        (set-words 0x2000 [0xabcd 0x1234])
-                       (set-reg register 0x00ff)
+                       (set-reg register 0xaaff)
                        (set-word 0xabcd 0x1234))
-          ;; use this function to wrap single-op for testing
+          ;; use these function to wrap single-op for testing
           ;; Note we are only testing direct register access here
-          single-op' (fn [op] (single-op op computer false "00" register))]
-      (testing "RPC"
-        (let [computer (single-op' :RPC)]
-          ;; Rotate right through carry
-          (is (= (get-reg computer register) 0x007f))
-          (is (= (C computer) 1))))
-      (testing "SWPB"
-        ;; Swap bytes
-        (let [computer (single-op' :SWPB)]
-          (is (= (get-reg computer register) 0xff00))))
-      (testing "RRA"
-        (let [computer (single-op' :RRA)]
-          (is (= (get-reg computer register) 0x007f))))
-      (testing "SXT"
-        (let [computer (single-op' :SXT)]
-          ;; Sign extend
-          (is (= (get-reg computer register) 0xffff))))
-      (testing "PUSH"
-        (let [computer (single-op' :PUSH)]
-          (is (= (get-word computer 0x2000) 0x00ff))
-          (is (= (SP computer) 0x1ffe))))
-      (testing "RETI"
-        (let [computer (single-op' :RETI)]
-          (is (= (SP computer) 0xabcd))
-          (is (= (PC computer) 0x1234)))))))
-
-
-
+          single-op-word (fn [op] (single-op op computer false "00" register))
+          single-op-byte (fn [op] (single-op op computer  true "00" register))]
+      (testing "word forms of OPs"
+        (testing "RPC"
+          (let [computer (single-op-word :RPC)]
+            ;; Rotate right through carry
+            (is (= (get-reg computer register) 0x557f))
+            (is (= (C computer) 1))))
+        (testing "SWPB"
+          ;; Swap bytes
+          (let [computer (single-op-word :SWPB)]
+            (is (= (get-reg computer register) 0xffaa))))
+        (testing "RRA"
+          (let [computer (single-op-word :RRA)]
+            (is (= (get-reg computer register) 0x557f))))
+        (testing "SXT"
+          (let [computer (single-op-word :SXT)]
+            ;; Sign extend
+            (is (= (get-reg computer register) 0xffff))))
+        (testing "PUSH"
+          (let [computer (single-op-word :PUSH)]
+            (is (= (get-word computer 0x2000) 0xaaff))
+            (is (= (SP computer) 0x1ffe))))
+        (testing "RETI"
+          (let [computer (single-op-word :RETI)]
+            (is (= (SP computer) 0xabcd))
+            (is (= (PC computer) 0x1234)))))
+      (testing "byte forms of OPs"
+        (testing "RPC"
+          (let [computer (single-op-byte :RPC)]
+            (is (= (get-reg computer register) 0x007f))
+            (is (= (C computer) 1))))
+        (testing "RRA"
+          (let [computer (single-op-byte :RRA)]
+            (is (= (get-reg computer register) 0x007f))))
+        (testing "PUSH"
+          (let [computer (single-op-byte :PUSH)]
+            (is (= (get-word computer 0x2000) 0x00ff))
+            (is (= (SP computer) 0x1ffe))))))))
 

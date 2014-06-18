@@ -65,40 +65,43 @@
   [computer _ register]
   [(get-word-indirect computer register) (inc-reg computer register) ])
 
+;; single-op is a multimethod that performs a single operand OP. OP is parameterized
+;; by the first argument (a symbol)
+;; These always puts the result in the register directly, which is a bug I believe?
 (defmulti single-op (fn [op _ _ _ _] op))
-
 (defmethod single-op :RPC
   [_ computer byte? source-mode register]
-  ;; This always puts the result in the register directly, which is a bug I believe?
   (let [[val computer] (get-value computer source-mode register)
+        val (if byte? (high-byte val) val)
+        high-bit (if byte? 7 15)
         c (C computer)
         new-c (bit-get val 0)
-        new-val (set-bit (bit-shift-right val 1) 15 c)]
+        new-val (set-bit (bit-shift-right val 1) high-bit c)]
     (-> computer
         (set-C new-c)
-        (set-reg register new-val))))
+        (set-reg register (make-word new-val)))))
 
 (defmethod single-op :SWPB
   [_ computer _ source-mode register]
-  ;; This always puts the result in the register directly, which is a bug I believe?
   (let [[value computer] (get-value computer source-mode register)]
     (set-reg computer register (little-endian value))))
 
 (defmethod single-op :RRA
   [_ computer byte? source-mode register]
-  (let [[value computer] (get-value computer source-mode register)]
-    (set-reg computer register (bit-shift-right value 1))))
+  (let [[value computer] (get-value computer source-mode register)
+        value (if byte? (high-byte value) value)]
+    (set-reg computer register (make-word (bit-shift-right value 1)))))
 
 (defmethod single-op :SXT
   [_ computer _ source-mode register]
-  ;; This always puts the result in the register directly, which is a bug I believe?
   (let [[val computer] (get-value computer source-mode register)]
     (set-reg computer register (make-word (unchecked-byte (high-byte val))))))
 
 (defmethod single-op :PUSH
   [_ computer byte? source-mode register]
-  (let [[val computer] (get-value computer source-mode register)]
-    (stack-push computer val)))
+  (let [[val computer] (get-value computer source-mode register)
+        val (if byte? (high-byte val) val)]
+    (stack-push computer (make-word val))))
 
 (defmethod single-op :CALL
   [_ computer _ source-mode register]
@@ -109,14 +112,14 @@
         (set-PC computer val))))
 
 (defmethod single-op :RETI
-  [_ computer byte? _ _]
+  [_ computer _ _ _]
   (let [[sp computer] (stack-pop computer)
         [pc computer] (stack-pop computer)]
     (-> computer
         (set-PC pc)
         (set-SP sp))))
 
-(defn perform-jump [computer cnd offset]
+(defn perform-jmp [computer cnd offset]
   (let [pc (PC computer)]
     (if ((cnd conditions) computer)
       (set-PC computer (+w pc offset))
@@ -131,10 +134,10 @@
             byte? (= byte? "1")
             register (binstr->int register)]
         (single-op op computer byte? source-mode register))
-      (if-let [[_ condition offset] (re-matches #"001([01]{3}[01]{10})" wrd)]
+      (if-let [[_ condition offset] (re-matches #"001([01]{3})([01]{10})$" wrd)]
         (let [cnd (get condition-codes condition)
               offset (binstr->int offset)]
-          (perform-jump computer cnd offset))
+          (perform-jmp computer cnd offset))
         
         "NOPE"))))
 

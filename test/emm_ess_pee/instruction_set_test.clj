@@ -22,9 +22,9 @@
   (testing "op parsing"
     ;; This redef just gives us back the op symbol (instead of executing the op)
     (with-redefs [single-op (fn [op _ _ _ _] op)]
-      (testing "RPC"
+      (testing "RRC"
         (is (= (parse-test (str "000100" "000" "0000000"))
-               :RPC)))
+               :RRC)))
       (testing "SWPB"
         (is (= (parse-test (str "000100" "001" "0000000"))
                :SWPB)))
@@ -225,7 +225,7 @@
           single-op-byte (fn [op] (single-op op computer  true :direct register))]
       (testing "word forms of OPs"
         (testing "RPC"
-          (let [computer (single-op-word :RPC)]
+          (let [computer (single-op-word :RRC)]
             ;; Rotate right through carry
             (is (= (get-reg computer register) 0x557f))
             (is (= (C computer) 1))))
@@ -249,8 +249,8 @@
             (is (= (SP computer) 0xabcd))
             (is (= (PC computer) 0x1234)))))
       (testing "byte forms of OPs"
-        (testing "RPC"
-          (let [computer (single-op-byte :RPC)]
+        (testing "RRC"
+          (let [computer (single-op-byte :RRC)]
             (is (= (get-reg computer register) 0x007f))
             (is (= (C computer) 1))))
         (testing "RRA"

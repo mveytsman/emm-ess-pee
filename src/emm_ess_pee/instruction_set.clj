@@ -10,7 +10,7 @@
   (let [instruction (get-word-indirect computer (named-register :pc))]
     [instruction, (inc-pc computer)]))
 
-(def single-op-codes {"000" :RPC
+(def single-op-codes {"000" :RRC
                       "001" :SWPB
                       "010" :RRA
                       "011" :SXT
@@ -100,7 +100,7 @@
 ;; by the first argument (a symbol)
 ;; These always puts the result in the register directly, which is a bug I believe?
 (defmulti single-op (fn [op _ _ _ _] op))
-(defmethod single-op :RPC
+(defmethod single-op :RRC
   [_ computer byte? source-mode register]
   (let [[val computer] (get-value computer source-mode byte? register)
         high-bit (if byte? 7 15)
@@ -109,7 +109,8 @@
         new-val (set-bit (bit-shift-right val 1) high-bit c)]
     (-> computer
         (set-C new-c)
-        (set-reg register (make-word new-val)))))
+        (set-reg register (make-word new-val))
+        (set-ZCN new-val byte?))))
 
 (defmethod single-op :SWPB
   [_ computer _ source-mode register]
@@ -118,13 +119,17 @@
 
 (defmethod single-op :RRA
   [_ computer byte? source-mode register]
-  (let [[value computer] (get-value computer source-mode byte? register)]
-    (set-reg computer register (make-word (bit-shift-right value 1)))))
+  (let [[value computer] (get-value computer source-mode byte? register)
+        result (make-bw (bit-shift-right value 1))]
+    (-> (set-reg computer register result)
+        (set-ZCN result byte?))))
 
 (defmethod single-op :SXT
   [_ computer _ source-mode register]
-  (let [[val computer] (get-value computer source-mode false register)]
-    (set-reg computer register (make-word (unchecked-byte (high-byte val))))))
+  (let [[val computer] (get-value computer source-mode false register)
+        result (make-word (unchecked-byte (high-byte val)))]
+    (-> (set-reg computer register result)
+        (set-ZCN result false))))
 
 (defmethod single-op :PUSH
   [_ computer byte? source-mode register]
@@ -144,8 +149,10 @@
   (let [[sp computer] (stack-pop computer)
         [pc computer] (stack-pop computer)]
     (-> computer
+        (set-SP sp)
         (set-PC pc)
-        (set-SP sp))))
+        ;;RETI sets status register, no idea what this is about
+        (set-ZCN pc false))))
 
 (defn perform-jmp [cnd computer offset]
   (let [pc (PC computer)]

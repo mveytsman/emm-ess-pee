@@ -1,10 +1,6 @@
 (ns emm-ess-pee.computer
   (:use emm-ess-pee.binary-utils))
 
-(defn make-computer []
-  {:registers (vec (repeat 16 (make-word 0)))
-   :memory (vec (repeat 64000 (make-byte 0)))})
-
 (defn get-reg
   "Returns value register reg from a computer"
   [computer i]
@@ -25,7 +21,7 @@
   "Decrements register by delta (default 2)"
   ([computer reg] (dec-reg computer reg 2))
   ([computer reg delta] (let [value (get-reg computer reg)]
-                      (set-reg computer reg (-w value delta)))))
+                          (set-reg computer reg (-w value delta)))))
 
 (defn inc-pc
   "Increments PC by delta (default 2)"
@@ -117,13 +113,13 @@
   [computer left right result byte?]
   ;;http://teaching.idallen.com/dat2343/10f/notes/040_overflow.txt
   (let [v (if (or (and (= (high-bit left byte?) 1)
-                        (= (high-bit right byte?) 1)
-                        (= (high-bit result byte?) 0))
-                   (and (= (high-bit left byte?) 0)
-                        (= (high-bit right byte?) 0)
-                        (= (high-bit result byte?) 1)))
-             1
-             0)]
+                       (= (high-bit right byte?) 1)
+                       (= (high-bit result byte?) 0))
+                  (and (= (high-bit left byte?) 0)
+                       (= (high-bit right byte?) 0)
+                       (= (high-bit result byte?) 1)))
+            1
+            0)]
     (set-V computer v)))
 
 
@@ -132,13 +128,13 @@
   [computer left right result byte?]
   ;;http://teaching.idallen.com/dat2343/10f/notes/040_overflow.txt
   (let [v (if (or (and (= (high-bit left byte?) 0)
-                        (= (high-bit right byte?) 1)
-                        (= (high-bit result byte?) 1))
-                   (and (= (high-bit left byte?) 1)
-                        (= (high-bit right byte?) 0)
-                        (= (high-bit result byte?) 0)))
-             1
-             0)]
+                       (= (high-bit right byte?) 1)
+                       (= (high-bit result byte?) 1))
+                  (and (= (high-bit left byte?) 1)
+                       (= (high-bit right byte?) 0)
+                       (= (high-bit result byte?) 0)))
+            1
+            0)]
     (set-V computer v)))
 
 (def register-names [:pc :sp :sr :r3 :r4 :r5 :r6 :r7 :r8 :r9 :r10 :r11 :r12 :r13 :r14 :r15])
@@ -161,6 +157,8 @@
         (assoc-in [:memory (inc i)] hb))))
 
 (defn set-words
+  ;; TODO NOTE THIS WRITES BACKWARDS
+  ;; I used this in a test to write to the stack, FIX or RENAME
   "Writes a series of words to memory starting at index"
   [computer i words]
   (if (<=  (count words) 0)
@@ -168,6 +166,15 @@
     (set-words (set-word computer i (first words))
                (- i 2)
                (rest words))))
+
+(defn set-bytes
+  "Writes a series of bytes to memory starting at index"
+  [computer i bytes]
+  (if (<=  (count bytes) 0)
+    computer
+    (set-bytes (assoc-in computer [:memory  i] (first bytes))
+               (inc i)
+               (rest bytes))))
 
 
 (defn get-word-indirect
@@ -218,5 +225,69 @@
   (let [value (get-word-indirect computer (named-register :sp))]
     [value (dec-reg computer (named-register :sp))]))
 
-;;; maybe I don't need these
+(defn fetch-instruction
+  "Returns [instruction, computer] where instruction is the word at PC, and computer has the PC register incremented"
+  [computer]
+  (let [instruction (get-word-indirect computer (named-register :pc))]
+    [instruction, (inc-pc computer)]))
+
+(defmulti get-value
+  "A multimethod for a getter that dispatches on address mode. Returns [value, computer]"
+  (fn [_ source-mode _ _] source-mode))
+(defmethod get-value :direct
+  [computer _ byte? register]
+  (cond
+   (= register 3) [0x0 computer]
+   :else (let [value (get-reg computer register)
+               value (if byte?
+                       (high-byte value)
+                       value)]
+           [value computer])))
+(defmethod get-value :indexed
+  [computer _ byte? register]
+  (cond
+   (= register 2) (let [[addr computer] (fetch-instruction computer)
+                        value (get-word computer addr)
+                        value (if byte?
+                                (high-byte value)
+                                value)]
+                    [value computer])
+   (= register 3) [0x1 computer]
+   :else (let [[offset, computer] (fetch-instruction computer)
+               value (get-word-indexed computer register offset)
+               value (if byte?
+                       (high-byte value)
+                       value)]
+           [value computer])))
+(defmethod get-value :indirect
+  [computer _ byte? register]
+  (cond
+   (= register 2) [0x4 computer]
+   (= register 3) [0x2 computer]
+   :else (let [value (get-word-indirect computer register)
+               value (if byte? (high-byte value) value)]
+           [value  computer])))
+(defmethod get-value :indirect-increment
+  [computer _ byte? register]
+  (cond
+   (= register 2) [0x8 computer]
+   (= register 3) [(make-bw -1 byte?) computer]
+   :else (let [value (get-word-indirect computer register)
+               value (if byte? (high-byte value) value)]
+           [value (inc-reg computer register)])))
+
+(defmulti set-value
+  "A multimethod for a setter that dispatches on address mode."
+  (fn [_ dest-mode _ _ _] dest-mode))
+(defmethod set-value :direct
+  [computer _ byte? register value]
+  (set-reg computer register (if byte? (high-byte value) value)))
+(defmethod set-value :indirect
+  [computer _ byte? register value]
+  (set-word computer (get-reg computer register) (if byte? (high-byte value) value)))
+
+(defn make-computer []
+  (let [computer {:registers (vec (repeat 16 (make-word 0)))
+                  :memory (vec (repeat 64000 (make-byte 0)))}]
+    (set-PC computer 0x4400)))
 

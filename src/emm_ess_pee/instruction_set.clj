@@ -1,18 +1,12 @@
 (ns emm-ess-pee.instruction-set
   (:use emm-ess-pee.binary-utils
-        emm-ess-pee.core
         emm-ess-pee.computer
-        [clojure.core.match :only [match]]))
+        emm-ess-pee.pprint))
 
 ;; TODO: some instructions set the status register but never overflow, should I set V to 0 then
 ;; TODO: constant mode for access from R2 and R3
 ;; TODO: interrupts?
 ;; TODO: DADC instruction
-(defn fetch-instruction
-  "Returns [instruction, computer] where instruction is the word at PC, and computer has the PC register incremented"
-  [computer]
-  (let [instruction (get-word-indirect computer (named-register :pc))]
-    [instruction, (inc-pc computer)]))
 
 (def single-op-codes {"000" :RRC
                       "001" :SWPB
@@ -61,45 +55,6 @@
 
 (def dest-modes {"0" :direct
                  "1" :indirect})
-
-(defmulti get-value
-  "A multimethod for a getter that dispatches on address mode. Returns [value, computer]"
-  (fn [_ source-mode _ _] source-mode))
-(defmethod get-value :direct
-  [computer _ byte? register]
-  (let [value (get-reg computer register)
-        value (if byte?
-                (high-byte value)
-                value)]
-    [value computer]))
-(defmethod get-value :indexed
-  [computer _ byte? register]
-  (let [[offset, computer] (fetch-instruction computer)
-        value (get-word-indexed computer register offset)
-        value (if byte?
-                (high-byte value)
-                value)]
-    [value computer]))
-(defmethod get-value :indirect
-  [computer _ byte? register]
-  (let [value (get-word-indirect computer register)
-        value (if byte? (high-byte value) value)]
-    [value  computer]))
-(defmethod get-value :indirect-increment
-  [computer _ byte? register]
-  (let [value (get-word-indirect computer register)
-        value (if byte? (high-byte value) value)]
-    [value (inc-reg computer register)]))
-
-(defmulti set-value
-  "A multimethod for a setter that dispatches on address mode."
-  (fn [_ dest-mode _ _ _] dest-mode))
-(defmethod set-value :direct
-  [computer _ byte? register value]
-  (set-reg computer register (if byte? (high-byte value) value)))
-(defmethod set-value :indirect
-  [computer _ byte? register value]
-  (set-word computer (get-reg computer register) (if byte? (high-byte value) value)))
 
 ;; single-op is a multimethod that performs a single operand OP. OP is parameterized
 ;; by the first argument (a symbol)
@@ -265,8 +220,6 @@
     (-> (set-value computer dest-mode byte? dest-reg result)
         (set-ZCN result byte?))))
 
-
-
 (defn execute-instruction [wrd computer]
   (let [wrd (int->binstr wrd)]
     ;; Matches single operand instruction
@@ -275,11 +228,14 @@
             source-mode (source-modes source-mode)
             byte? (= byte? "1")
             register (binstr->int register)]
-        (single-op op computer byte? source-mode register))
+        (print-single-op op computer byte? source-mode register)
+        (single-op       op computer byte? source-mode register))
       ;; Matches jmp instruction
       (if-let [[_ condition offset] (re-matches #"001([01]{3})([01]{10})$" wrd)]
         (let [cnd (get condition-codes condition)
               offset (binstr->int offset)]
+          
+          (print-jmp cnd offset)
           (perform-jmp cnd computer offset))
         ;; Matches dual operand instruction
         (if-let [[_ opcode source-reg dest-mode byte? source-mode dest-reg ] (re-matches #"([01]{4})([01]{4})([01])([01])([01]{2})([01]{4})$" wrd)]
@@ -289,10 +245,11 @@
                 byte? (= byte? "1")
                 dest-mode (dest-modes dest-mode)
                 dest-reg (binstr->int dest-reg)]
+            (print-dual-op op computer byte? source-mode source-reg dest-mode dest-reg)
             (dual-op op computer byte? source-mode source-reg dest-mode dest-reg))
           "NOPE")))))
 
 
 (defn do-stuff [computer]
   "Do stuff I guess"
-  (apply execute-instruction (fetch-instruction)))
+  (apply execute-instruction (fetch-instruction computer)))

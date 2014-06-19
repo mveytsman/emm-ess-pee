@@ -15,7 +15,7 @@
 
 (defn parse-test
   "helper function to wrap execute-instruction"
-  [instruction] (execute-instruction (binstr->int instruction) nil))
+  [instruction] (execute-instruction (binstr->int instruction) (make-computer)))
 
 (deftest single-op-parsing-test
   
@@ -163,7 +163,9 @@
     (let [register 13
           computer (-> (make-computer)
                        (set-PC 0x4402)
+                       (set-SR 0xabab) ; probably not a legal SR
                        (set-word 0x4402 0x02)
+                       (set-word 0x02 0xeeee)
                        (set-reg register 0xabcd)
                        (set-word 0xabcd 0x1234)
                        (set-word 0xabcf 0x5678))]
@@ -197,7 +199,36 @@
         (testing "register-indirect-with-post-increment mode"
           (let [[value computer] (get-value computer :indirect-increment true register)]
             (is (= value 0x34))
-            (is (= (get-reg computer register) 0xabcf))))))))
+            (is (= (get-reg computer register) 0xabcf)))))
+      (testing "special access modes"
+        ;; http://mspgcc.sourceforge.net/manual/x147.html
+        (testing "r2 normal access" 
+          (let [[value _] (get-value computer :direct false 2)]
+            (is (= value 0xabab))))
+        (testing "absolute addressing" 
+          (let [[value _] (get-value computer :indexed false 2)]
+            (is (= value 0xeeee))))
+        (testing "#4" 
+          (let [[value _] (get-value computer :indirect false 2)]
+            (is (= value 0x4))))
+        (testing "#8" 
+          (let [[value _] (get-value computer :indirect-increment false 2)]
+            (is (= value 0x8))))
+        (testing "#0" 
+          (let [[value _] (get-value computer :direct false 3)]
+            (is (= value 0x0))))
+        (testing "#1" 
+          (let [[value _] (get-value computer :indexed false 3)]
+            (is (= value 0x1))))
+        (testing "#2" 
+          (let [[value _] (get-value computer :indirect false 3)]
+            (is (= value 0x2))))
+        (testing "#-1 word" 
+          (let [[value _] (get-value computer :indirect-increment false 3)]
+            (is (= value 0xffff))))
+        (testing "#-1 byte" 
+          (let [[value _] (get-value computer :indirect-increment true 3)]
+            (is (= value 0xff))))))))
 
 (deftest set-value-test
   (testing "set-value"

@@ -11,6 +11,14 @@
   "Makes a word out of a value or two bytes (little-endian)"
   ([wrd] (bit-and (unchecked-short wrd) 0xffff))
   ([byt1 byt2] (+ (bit-shift-left (make-byte byt2) 8) (make-byte byt1))))
+
+(defn make-bw
+  "Makes a byte or word depending on byte? value"
+  [value byte?]
+  (if byte?
+    (make-byte value)
+    (make-word value)))
+
 (defn low-byte [wrd]
   (make-byte (bit-shift-right wrd 8)))
 (defn high-byte [wrd]
@@ -46,3 +54,19 @@
   (if (= val 0)
     (bit-clear x n)
     (bit-set x n)))
+
+(defn high-bit
+  "Returns the most significant bit (determined by whether it's a byte or word operatin)"
+  [value byte?]
+  (if byte?
+    (bit-get value 7)
+    (bit-get value 15)))
+
+(defn overflow-bit
+  "Returns the overflow  bit (determined by whether it's a byte or word operatin)"
+  [value byte?]
+  (if byte?
+    (bit-get value 8)
+    (bit-get value 16)))
+
+

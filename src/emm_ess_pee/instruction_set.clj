@@ -160,35 +160,51 @@
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[val computer] (get-value computer source-mode byte? source-reg)]
     (set-value computer dest-mode byte? dest-reg (make-word val))))
+
 (defmethod dual-op :ADD
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
-        result (+w src dst)
-        result (if byte? (high-byte result) result)]
+        result (+ src dst)
+        computer (-> (set-ZCN computer result byte?)
+                     (set-V-add src dst result byte?))
+        result (make-bw result byte?)]
     (set-value computer dest-mode byte? dest-reg result)))
+
 (defmethod dual-op :ADDC
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
         c (C computer)
-        result (+w src dst c)
-        result (if byte? (high-byte result) result)]
+        result (+ src dst c)
+        computer (-> (set-ZCN computer result byte?)
+                     (set-V-add src dst result byte?))
+        result (make-bw result byte?)]
     (set-value computer dest-mode byte? dest-reg result)))
+
 (defmethod dual-op :SUBC
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
-        src (if byte? (make-byte (bit-not src)) (make-word (bit-not src)))
+        src (bit-not src)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
         c (C computer)
-        result (+w src dst c)
-        result (if byte? (high-byte result) result)]
+        result (+ src dst c)
+        computer (-> (set-ZCN computer result byte?)
+                     ;; I don't know if I have the correct order here
+                     (set-V-sub src dst result byte?))
+        result (make-bw result byte?)]
     (set-value computer dest-mode byte? dest-reg result)))
+
 (defmethod dual-op :SUB
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
+        src (bit-not src)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
-        result (if byte? (-b dst src) (-w dst src))]
+        result (+ dst src 1)
+        computer (-> (set-ZCN computer result byte?)
+                     ;; I don't know if I have the correct order here
+                     (set-V-sub src dst result byte?))
+        result (make-bw result byte?)]
     (set-value computer dest-mode byte? dest-reg result)))
 
 (defmethod dual-op :CMP
@@ -236,6 +252,3 @@
 (defn do-stuff [computer]
   "Do stuff I guess"
   (apply execute-instruction (fetch-instruction)))
-
-
-(defn print-instruction [name byte-addr? address register])

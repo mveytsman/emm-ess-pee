@@ -104,6 +104,43 @@
 (defn set-V [computer value]
   (set-SR computer (set-bit (SR computer) 8 value)))
 
+(defn set-ZCN
+  "Sets the Z,C,N flags"
+  [computer result byte?]
+  (-> (set-Z computer (if (zero? result) 1 0))
+      (set-C (overflow-bit result byte?))
+      (set-N (high-bit result byte?))))
+
+;; TODO: I'm not really testing these :(
+(defn set-V-add
+  "Sets the V flag for additon"
+  [computer left right result byte?]
+  ;;http://teaching.idallen.com/dat2343/10f/notes/040_overflow.txt
+  (let [v (if (or (and (= (high-bit left byte?) 1)
+                        (= (high-bit right byte?) 1)
+                        (= (high-bit result byte?) 0))
+                   (and (= (high-bit left byte?) 0)
+                        (= (high-bit right byte?) 0)
+                        (= (high-bit result byte?) 1)))
+             1
+             0)]
+    (set-V computer v)))
+
+
+(defn set-V-sub
+  "Sets the V flag for subtraction"
+  [computer left right result byte?]
+  ;;http://teaching.idallen.com/dat2343/10f/notes/040_overflow.txt
+  (let [v (if (or (and (= (high-bit left byte?) 0)
+                        (= (high-bit right byte?) 1)
+                        (= (high-bit result byte?) 1))
+                   (and (= (high-bit left byte?) 1)
+                        (= (high-bit right byte?) 0)
+                        (= (high-bit result byte?) 0)))
+             1
+             0)]
+    (set-V computer v)))
+
 (def register-names [:pc :sp :sr :r3 :r4 :r5 :r6 :r7 :r8 :r9 :r10 :r11 :r12 :r13 :r14 :r15])
 
 (def named-register (zipmap register-names (range)))

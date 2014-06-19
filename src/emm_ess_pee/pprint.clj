@@ -7,7 +7,16 @@
   [op byte?]
   (str (name op) (if byte? ".b")))
 
+(defn print-registers
+  "Display all the registers"
+  [registers]
+  (println)
+  (println "Register State:")
+  (println (apply str (interleave  ["PC: " " SP: " " SR: " " R3: " "\nR4: " " R5: " " R6: " " R7: " "\nR8: " " R9: " " R10: " " R11: " "\nR12: " " R13: " " R14: " " R15: "]
+                                    (map #(str (int->hexstr %)) registers)))))
+
 (defn print-register-access
+  "Returns a string displaying register access mode and register (for disassembles)"
   [computer mode register]
   (let [reg-name (case register
                    0 "PC"
@@ -20,7 +29,7 @@
                                 (get-word-indirect computer 0)
                                 "(" reg-name ")")
                       :indirect (str "@" reg-name)
-                      :indirect-increment (str "@" reg-name "+"))]
+                      :indirect-increment (str "@" reg-name "+" "("(get-word-indirect computer register) ")"))]
     (str reg-display )))
 
 
@@ -49,4 +58,3 @@
 (defn print-jmp
   [cnd offset]
   (println (name cnd) "$" offset))
-

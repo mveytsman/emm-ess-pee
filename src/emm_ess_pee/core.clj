@@ -2,6 +2,7 @@
   (:use emm-ess-pee.binary-utils
         emm-ess-pee.computer
         emm-ess-pee.instruction-set
+        emm-ess-pee.pprint
         clojure.repl)
   (:require [clojure.pprint :refer [pprint]])
   (:gen-class))
@@ -34,13 +35,14 @@
   []
   (swap! computer-state (constantly (make-computer)))
   (load-code hello-world-code)
-  (:registers @computer-state))
+  (print-registers (:registers @computer-state)))
 
 (defn step
   "Takes a step"
   []
+  (println "Executing Instruction:")
   (swap! computer-state #(apply execute-instruction (fetch-instruction %)))
-  (:registers @computer-state))
+  (print-registers (:registers @computer-state)))
 
 
 ;; TODO: make a cool interactive debugger here

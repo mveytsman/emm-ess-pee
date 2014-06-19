@@ -1,0 +1,102 @@
+
+hello_world.elf:     file format elf32-msp430
+
+
+Disassembly of section .text:
+
+00004400 <__init_stack>:
+    4400:	31 40 00 44 	mov	#17408,	r1	;#0x4400
+
+00004404 <__low_level_init>:
+    4404:	15 42 5c 01 	mov	&0x015c,r5	
+    4408:	75 f3       	and.b	#-1,	r5	;r3 As==11
+    440a:	35 d0 08 5a 	bis	#23048,	r5	;#0x5a08
+
+0000440e <__do_copy_data>:
+    440e:	3f 40 00 00 	mov	#0,	r15	;#0x0000
+    4412:	0f 93       	tst	r15		
+    4414:	07 24       	jz	$+16     	;abs 0x4424
+    4416:	82 45 5c 01 	mov	r5,	&0x015c	
+    441a:	2f 83       	decd	r15		
+    441c:	9f 4f 8a 44 	mov	17546(r15),9216(r15);0x448a(r15), 0x2400(r15)
+    4420:	00 24 
+    4422:	f9 23       	jnz	$-12     	;abs 0x4416
+
+00004424 <__do_clear_bss>:
+    4424:	3f 40 00 00 	mov	#0,	r15	;#0x0000
+    4428:	0f 93       	tst	r15		
+    442a:	06 24       	jz	$+14     	;abs 0x4438
+    442c:	82 45 5c 01 	mov	r5,	&0x015c	
+    4430:	1f 83       	dec	r15		
+    4432:	cf 43 00 24 	mov.b	#0,	9216(r15);r3 As==00, 0x2400(r15)
+    4436:	fa 23       	jnz	$-10     	;abs 0x442c
+
+00004438 <main>:
+#include <msp430.h>
+#include <stdio.h>
+ 
+int main(void)
+{
+    printf("Hello World\n");
+    4438:	3f 40 4c 44 	mov	#17484,	r15	;#0x444c
+    443c:	b0 12 5c 44 	call	#0x445c	
+    return 0;
+}
+    4440:	0f 43       	clr	r15		
+
+00004442 <__stop_progExec__>:
+    4442:	32 d0 f0 00 	bis	#240,	r2	;#0x00f0
+    4446:	fd 3f       	jmp	$-4      	;abs 0x4442
+
+00004448 <__ctors_end>:
+    4448:	30 40 88 44 	br	#0x4488	
+    444c:	48 65       	addc.b	r5,	r8	
+    444e:	6c 6c       	addc.b	@r12,	r12	
+    4450:	6f 20       	jnz	$+224    	;abs 0x4530
+    4452:	57 6f 72 6c 	addc.b	27762(r15),r7	;0x6c72(r15)
+    4456:	64 00 1f 43 	mova	r0,	&0x4431f
+
+00004458 <putchar>:
+ 
+int  putchar(int c)
+{
+    // Write a driver here that writes c somewhere
+    return 1;
+}
+    4458:	1f 43       	mov	#1,	r15	;r3 As==01
+    445a:	30 41       	ret			
+
+0000445c <puts>:
+    445c:	0b 12       	push	r11		
+    445e:	0b 4f       	mov	r15,	r11	
+    4460:	6f 4b       	mov.b	@r11,	r15	
+    4462:	4f 93       	tst.b	r15		
+    4464:	06 24       	jz	$+14     	;abs 0x4472
+    4466:	1b 53       	inc	r11		
+    4468:	8f 11       	sxt	r15		
+    446a:	b0 12 58 44 	call	#0x4458	
+    446e:	0f 93       	tst	r15		
+    4470:	f7 37       	jge	$-16     	;abs 0x4460
+    4472:	cb 93 00 00 	tst.b	0(r11)		;0x0000(r11)
+    4476:	05 20       	jnz	$+12     	;abs 0x4482
+    4478:	3f 40 0a 00 	mov	#10,	r15	;#0x000a
+    447c:	b0 12 58 44 	call	#0x4458	
+    4480:	01 3c       	jmp	$+4      	;abs 0x4484
+    4482:	3f 43       	mov	#-1,	r15	;r3 As==11
+    4484:	3b 41       	pop	r11		
+    4486:	30 41       	ret			
+
+00004488 <_unexpected_>:
+    4488:	00 13       	reti			
+
+Disassembly of section .vectors:
+
+0000ff80 <__ivtbl_64>:
+    ff80:	48 44 48 44 48 44 48 44 48 44 48 44 48 44 48 44     HDHDHDHDHDHDHDHD
+    ff90:	48 44 48 44 48 44 48 44 48 44 48 44 48 44 48 44     HDHDHDHDHDHDHDHD
+    ffa0:	48 44 48 44 48 44 48 44 48 44 48 44 48 44 48 44     HDHDHDHDHDHDHDHD
+    ffb0:	48 44 48 44 48 44 48 44 48 44 48 44 48 44 48 44     HDHDHDHDHDHDHDHD
+    ffc0:	48 44 48 44 48 44 48 44 48 44 48 44 48 44 48 44     HDHDHDHDHDHDHDHD
+    ffd0:	48 44 48 44 48 44 48 44 48 44 48 44 48 44 48 44     HDHDHDHDHDHDHDHD
+    ffe0:	48 44 48 44 48 44 48 44 48 44 48 44 48 44 48 44     HDHDHDHDHDHDHDHD
+    fff0:	48 44 48 44 48 44 48 44 48 44 48 44 48 44 00 44     HDHDHDHDHDHDHD.D

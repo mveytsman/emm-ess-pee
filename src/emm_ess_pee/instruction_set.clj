@@ -4,6 +4,10 @@
         emm-ess-pee.computer
         [clojure.core.match :only [match]]))
 
+;; TODO: some instructions set the status register but never overflow, should I set V to 0 then
+;; TODO: constant mode for access from R2 and R3
+;; TODO: interrupts?
+;; TODO: DADC instruction
 (defn fetch-instruction
   "Returns [instruction, computer] where instruction is the word at PC, and computer has the PC register incremented"
   [computer]
@@ -34,7 +38,8 @@
                     "1000" :SUB
                     "1001" :CMP
                     "1010" :DADD
-                    "1100" :BIT
+                    "1011" :BIT
+                    "1100" :BIC
                     "1101" :BIS
                     "1110" :XOR
                     "1111" :AND})
@@ -109,8 +114,7 @@
         new-val (set-bit (bit-shift-right val 1) high-bit c)]
     (-> computer
         (set-C new-c)
-        (set-reg register (make-word new-val))
-        (set-ZCN new-val byte?))))
+        (set-reg register (make-word new-val)))))
 
 (defmethod single-op :SWPB
   [_ computer _ source-mode register]
@@ -120,7 +124,7 @@
 (defmethod single-op :RRA
   [_ computer byte? source-mode register]
   (let [[value computer] (get-value computer source-mode byte? register)
-        result (make-bw (bit-shift-right value 1))]
+        result (make-bw (bit-shift-right value 1) byte?)]
     (-> (set-reg computer register result)
         (set-ZCN result byte?))))
 
@@ -174,7 +178,7 @@
         [dst computer] (get-value computer dest-mode byte? dest-reg)
         result (+ src dst)
         computer (-> (set-ZCN computer result byte?)
-                     (set-V-add src dst result byte?))
+                     (set-V-add dst src result byte?))
         result (make-bw result byte?)]
     (set-value computer dest-mode byte? dest-reg result)))
 
@@ -185,7 +189,7 @@
         c (C computer)
         result (+ src dst c)
         computer (-> (set-ZCN computer result byte?)
-                     (set-V-add src dst result byte?))
+                     (set-V-add dst src result byte?))
         result (make-bw result byte?)]
     (set-value computer dest-mode byte? dest-reg result)))
 
@@ -198,7 +202,7 @@
         result (+ src dst c)
         computer (-> (set-ZCN computer result byte?)
                      ;; I don't know if I have the correct order here
-                     (set-V-sub src dst result byte?))
+                     (set-V-sub dst src result byte?))
         result (make-bw result byte?)]
     (set-value computer dest-mode byte? dest-reg result)))
 
@@ -210,23 +214,56 @@
         result (+ dst src 1)
         computer (-> (set-ZCN computer result byte?)
                      ;; I don't know if I have the correct order here
-                     (set-V-sub src dst result byte?))
+                     (set-V-sub dst src result byte?))
         result (make-bw result byte?)]
     (set-value computer dest-mode byte? dest-reg result)))
 
 (defmethod dual-op :CMP
-  [_ computer byte? source-mode source-reg dest-mode dest-reg])
+  [_ computer byte? source-mode source-reg dest-mode dest-reg]
+  (let [[src computer] (get-value computer source-mode byte? source-reg)
+        [dst computer] (get-value computer dest-mode byte? dest-reg)
+        result (- dst src)]
+    (-> (set-ZCN computer result byte?)
+        (set-V-sub dst src result byte?))))
 (defmethod dual-op :DADD
   [_ computer byte? source-mode source-reg dest-mode dest-reg])
-(defmethod dual-op :BIT
-  [_ computer byte? source-mode source-reg dest-mode dest-reg])
-(defmethod dual-op :BIS
-  [_ computer byte? source-mode source-reg dest-mode dest-reg])
-(defmethod dual-op :XOR
-  [_ computer byte? source-mode source-reg dest-mode dest-reg])
-(defmethod dual-op :AND
-  [_ computer byte? source-mode source-reg dest-mode dest-reg])
 
+(defmethod dual-op :BIT
+  [_ computer byte? source-mode source-reg dest-mode dest-reg]
+  (let [[src computer] (get-value computer source-mode byte? source-reg)
+        [dst computer] (get-value computer dest-mode byte? dest-reg)
+        result (bit-and dst src)]
+    (set-ZCN computer result byte?)))
+
+(defmethod dual-op :BIC
+  [_ computer byte? source-mode source-reg dest-mode dest-reg]
+  (let [[src computer] (get-value computer source-mode byte? source-reg)
+        [dst computer] (get-value computer dest-mode byte? dest-reg)
+        result (bit-and dst (bit-not src))]
+    (set-value computer dest-mode byte? dest-reg result)))
+
+(defmethod dual-op :BIS
+  [_ computer byte? source-mode source-reg dest-mode dest-reg]
+  (let [[src computer] (get-value computer source-mode byte? source-reg)
+        [dst computer] (get-value computer dest-mode byte? dest-reg)
+        result (bit-or dst src)]
+    (set-value computer dest-mode byte? dest-reg result)))
+
+(defmethod dual-op :XOR
+  [_ computer byte? source-mode source-reg dest-mode dest-reg]
+  (let [[src computer] (get-value computer source-mode byte? source-reg)
+        [dst computer] (get-value computer dest-mode byte? dest-reg)
+        result (bit-xor dst src)]
+    (-> (set-value computer dest-mode byte? dest-reg result)
+        (set-ZCN result byte?))))
+
+(defmethod dual-op :AND
+  [_ computer byte? source-mode source-reg dest-mode dest-reg]
+  (let [[src computer] (get-value computer source-mode byte? source-reg)
+        [dst computer] (get-value computer dest-mode byte? dest-reg)
+        result (bit-and dst src)]
+    (-> (set-value computer dest-mode byte? dest-reg result)
+        (set-ZCN result byte?))))
 
 
 

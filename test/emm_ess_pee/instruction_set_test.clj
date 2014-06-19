@@ -116,7 +116,9 @@
       (testing "DADD"
         (is (= (parse-test (str "1010" "000000000000")) :DADD)))
       (testing "BIT"
-        (is (= (parse-test (str "1100" "000000000000")) :BIT)))
+        (is (= (parse-test (str "1011" "000000000000")) :BIT)))
+      (testing "BIC"
+        (is (= (parse-test (str "1100" "000000000000")) :BIC)))
       (testing "BIS"
         (is (= (parse-test (str "1101" "000000000000")) :BIS)))
       (testing "XOR"
@@ -366,10 +368,74 @@
           (let [computer (dual-op-byte :SUB)]
             (is (= (get-reg computer register2) 0xe2)))))
 
-      (testing "ADDC"
+      ;; not a good test
+      (testing "CMP"
+        (testing "word-mode"
+          (let [computer (dual-op-word :CMP)]
+            (is (= (C computer)) 0)
+            (is (= (Z computer)) 0)
+            (is (= (N computer)) 0)
+            (is (= (V computer)) 0)))
+        (testing "byte-mode"
+          (let [computer (dual-op-word :CMP)]
+            (is (= (C computer)) 0)
+            (is (= (Z computer)) 0)
+            (is (= (N computer)) 0)
+            (is (= (V computer)) 0))))
+      
+      (testing "DADD" ;; TODO!!
         (testing "word-mode"
           (let [computer (dual-op-word :ADDC)]
             (is (= (get-reg computer register2) 0x66e1))))
         (testing "byte-mode"
           (let [computer (dual-op-byte :ADDC)]
-            (is (= (get-reg computer register2) 0xe1))))))))
+            (is (= (get-reg computer register2) 0xe1)))))
+      
+      (testing "BIT"
+        (testing "word-mode"
+          (let [computer (dual-op-word :BIT)]
+            (is (= (Z computer) 0))
+            (is (= (C computer) 0))
+            (is (= (N computer) 1))))
+        (testing "byte-mode"
+          (let [computer (dual-op-byte :BIT)]
+            (is (= (Z computer) 0))
+            (is (= (C computer) 0))
+            (is (= (N computer) 1)))))
+      
+      (testing "BIC"
+        (testing "word-mode"
+          (let [computer (dual-op-word :BIC)]
+            (is (= (get-reg computer register2) 0x1100))))
+        (testing "byte-mode"
+          (let [computer (dual-op-byte :BIC)]
+            (is (= (get-reg computer register2) 0x00)))))
+
+      (testing "BIS"
+        (testing "word-mode"
+          (let [computer (dual-op-word :BIS)]
+            (is (= (get-reg computer register2) 0xbbff))))
+        (testing "byte-mode"
+          (let [computer (dual-op-byte :BIS)]
+            (is (= (get-reg computer register2) 0xff)))))
+
+
+      (testing "XOR"
+        (testing "word-mode"
+          (let [computer (dual-op-word :XOR)]
+            (is (= (get-reg computer register2) 0x111e))))
+        (testing "byte-mode"
+          (let [computer (dual-op-byte :XOR)]
+            (is (= (get-reg computer register2) 0x1e)))))
+
+      (testing "AND"
+        (testing "word-mode"
+          (let [computer (dual-op-word :AND)]
+            (is (= (get-reg computer register2) 0xaae1))))
+        (testing "byte-mode"
+          (let [computer (dual-op-byte :AND)]
+            (is (= (get-reg computer register2) 0xe1)))))
+
+
+    )))
+    

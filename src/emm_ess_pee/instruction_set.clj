@@ -250,7 +250,7 @@
       ;; Matches jmp instruction
       [[_ condition offset] (re-matches #"001([01]{3})([01]{10})$" wrd)]
       (let [cnd (get condition-codes condition)
-            offset (* 2 ( binstr->int offset))]
+            offset (calculate-jmp-offset offset)]
         (print-jmp cnd offset)
         (perform-jmp cnd computer offset))
       ;; Matches dual operand instruction

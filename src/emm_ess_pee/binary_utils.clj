@@ -78,3 +78,13 @@
     (bit-get value 16)))
 
 
+(defn sign-extend
+  "Sign extends a binary number of `bits` bits to a word. Default is 8 (byte)"
+  ([num]
+     (sign-extend num 8))
+  ([num bits]
+     (let [delta (- 16 bits)]
+       ;; Kind of a hacky way to do this, shift the number left, cast to a word, then shift right
+       (-> (bit-shift-left num delta)
+           (unchecked-short)
+           (bit-shift-right delta)))))

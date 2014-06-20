@@ -234,6 +234,12 @@
   (let [instruction (get-word computer (PC computer))]
     [instruction, (inc-PC computer)]))
 
+(defn calculate-jmp-offset
+  "JMP offsets are sign extended 10-bit integers, which are doubled to get the offset in bytes"
+  [offset]
+  (* 2 (sign-extend (binstr->int offset) 10))
+  )
+
 (defmulti get-value
   "A multimethod for a getter that dispatches on address mode. Returns [value, computer]"
   (fn [_ source-mode _ _] source-mode))

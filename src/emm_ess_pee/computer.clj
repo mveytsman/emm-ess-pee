@@ -23,11 +23,7 @@
   ([computer reg delta] (let [value (get-reg computer reg)]
                           (set-reg computer reg (-w value delta)))))
 
-(defn inc-pc
-  "Increments PC by delta (default 2)"
-  ([computer] (inc-reg computer 0 2))
-  ([computer delta] (inc-reg computer 0 delta)))
-
+;; Getters and setters for named registers
 (defn PC [computer]
   (get-reg computer 0))
 
@@ -45,6 +41,18 @@
 
 (defn set-SR [computer value]
   (set-reg computer 2 value))
+
+(defn inc-PC
+  "Increments PC by delta (default 2)"
+  ([computer] (inc-reg computer 0 2))
+  ([computer delta] (inc-reg computer 0 delta)))
+
+(defn dec-SP
+  "Decrements SP by delta (default 2)"
+   ([computer] (dec-reg computer 1 2))
+   ([computer delta] (dec-reg computer 1 delta)))
+
+;; getters and setters for status bits (SR register)
 
 (defn C [computer]
   (bit-get (SR computer) 0))
@@ -109,7 +117,7 @@
 
 ;; TODO: I'm not really testing these :(
 (defn set-V-add
-  "Sets the V flag for additon"
+  "Sets the V (overflow) status bit after addition"
   [computer left right result byte?]
   ;;http://teaching.idallen.com/dat2343/10f/notes/040_overflow.txt
   (let [v (if (or (and (= (high-bit left byte?) 1)
@@ -124,7 +132,7 @@
 
 
 (defn set-V-sub
-  "Sets the V flag for subtraction"
+  "Sets the V (overflow) status bit after subtracton"
   [computer left right result byte?]
   ;;http://teaching.idallen.com/dat2343/10f/notes/040_overflow.txt
   (let [v (if (or (and (= (high-bit left byte?) 0)
@@ -136,10 +144,6 @@
             1
             0)]
     (set-V computer v)))
-
-(def register-names [:pc :sp :sr :r3 :r4 :r5 :r6 :r7 :r8 :r9 :r10 :r11 :r12 :r13 :r14 :r15])
-
-(def named-register (zipmap register-names (range)))
 
 (defn get-word
   "Returns a (little-endian) word from memory at index i"
@@ -214,22 +218,21 @@
   "Pushes a value onto the stack"
   ;; TODO: handle byte/word mode
   [computer value]
-  (-> computer
-      (set-word-indirect (named-register :sp) value)
-      (dec-reg (named-register :sp))))
+  (-> (set-word computer (SP computer) value)
+      (dec-SP)))
 
 (defn stack-pop
   "Pops a value off the stack. Returns [value, computer]"
   ;; TODO: handle byte/word mode
   [computer]
-  (let [value (get-word-indirect computer (named-register :sp))]
-    [value (dec-reg computer (named-register :sp))]))
+  (let [value (get-word computer (SP computer))]
+    [value (dec-SP computer)]))
 
 (defn fetch-instruction
   "Returns [instruction, computer] where instruction is the word at PC, and computer has the PC register incremented"
   [computer]
-  (let [instruction (get-word-indirect computer (named-register :pc))]
-    [instruction, (inc-pc computer)]))
+  (let [instruction (get-word computer (PC computer))]
+    [instruction, (inc-PC computer)]))
 
 (defmulti get-value
   "A multimethod for a getter that dispatches on address mode. Returns [value, computer]"
@@ -286,7 +289,9 @@
   [computer _ byte? register value]
   (set-word computer (get-reg computer register) (if byte? (high-byte value) value)))
 
-(defn make-computer []
+(defn make-computer
+  "Make a bag of state we call a computer, set PC to 0x4400"
+  []  
   (let [computer {:registers (vec (repeat 16 (make-word 0)))
                   :memory (vec (repeat 64000 (make-byte 0)))}]
     (set-PC computer 0x4400)))

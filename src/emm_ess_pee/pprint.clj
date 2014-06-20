@@ -1,9 +1,9 @@
 (ns emm-ess-pee.pprint
   (:use emm-ess-pee.binary-utils
-        emm-ess-pee.computer
-        ))
+        emm-ess-pee.computer))
 
 (defn print-op
+  "Prints the name of an OP along with an optional .b"
   [op byte?]
   (str (name op) (if byte? ".b")))
 
@@ -34,6 +34,7 @@
 
 
 (defn print-single-op
+  "Prints a operation of one operand along with its arguments"
   [op computer byte? source-mode register]
   (let [op (print-op op byte?)
         reg (print-register-access computer source-mode register)
@@ -45,6 +46,7 @@
 
 
 (defn print-dual-op
+  "Prints an operation of two arguments along with its arguments"
   [op computer byte? source-mode source-reg dest-mode dest-reg]
   (let [op (print-op op byte?)
         reg1 (print-register-access computer source-mode source-reg)
@@ -56,5 +58,6 @@
 
 
 (defn print-jmp
+  "Print a JMP instruction along with the offset"
   [cnd offset]
   (println (name cnd) "$" offset))

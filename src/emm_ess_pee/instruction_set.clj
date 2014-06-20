@@ -4,57 +4,67 @@
         emm-ess-pee.pprint))
 
 ;; TODO: some instructions set the status register but never overflow, should I set V to 0 then
-;; TODO: constant mode for access from R2 and R3
 ;; TODO: interrupts?
 ;; TODO: DADC instruction
 
-(def single-op-codes {"000" :RRC
-                      "001" :SWPB
-                      "010" :RRA
-                      "011" :SXT
-                      "100" :PUSH
-                      "101" :CALL
-                      "110" :RETI})
+(def single-op-codes
+  "Mapping from binary string to opcode for single operand ops"
+  {"000" :RRC
+   "001" :SWPB
+   "010" :RRA
+   "011" :SXT
+   "100" :PUSH
+   "101" :CALL
+   "110" :RETI})
 
-(def condition-codes {"000" :JNE
-                      "001" :JEQ
-                      "010" :JNC
-                      "011" :JC
-                      "100" :NC
-                      "101" :JGE
-                      "110" :JL
-                      "111" :JMP})
+(def condition-codes
+  "Mapping from binary string to jump conditional"
+  {"000" :JNE
+   "001" :JEQ
+   "010" :JNC
+   "011" :JC
+   "100" :NC
+   "101" :JGE
+   "110" :JL
+   "111" :JMP})
 
-(def dual-op-codes {"0100" :MOV
-                    "0101" :ADD
-                    "0110" :ADDC
-                    "0111" :SUBC
-                    "1000" :SUB
-                    "1001" :CMP
-                    "1010" :DADD
-                    "1011" :BIT
-                    "1100" :BIC
-                    "1101" :BIS
-                    "1110" :XOR
-                    "1111" :AND})
+(def dual-op-codes
+  "Mapping from binary string to opcode for dual operand ops"
+  {"0100" :MOV
+   "0101" :ADD
+   "0110" :ADDC
+   "0111" :SUBC
+   "1000" :SUB
+   "1001" :CMP
+   "1010" :DADD
+   "1011" :BIT
+   "1100" :BIC
+   "1101" :BIS
+   "1110" :XOR
+   "1111" :AND})
 
+(def conditions
+  "Function to evalue for conditionals"
+  {:JNE #(= (Z %) 0)
+   :JEQ #(= (Z %) 1)
+   :JNC #(= (C %) 0)
+   :JC  #(= (C %) 1)
+   :JN  #(= (N %) 1)
+   :JGE #(= (N %1) (V %1))
+   :JL  #(not= (N %1) (V %1))
+   :JMP (constantly true)})
 
-(def conditions {:JNE #(= (Z %) 0)
-                 :JEQ #(= (Z %) 1)
-                 :JNC #(= (C %) 0)
-                 :JC  #(= (C %) 1)
-                 :JN  #(= (N %) 1)
-                 :JGE #(= (N %1) (V %1))
-                 :JL  #(not= (N %1) (V %1))
-                 :JMP (constantly true)})
+(def source-modes
+  "Mapping from binary string to register access mode (source register)"
+  {"00" :direct
+   "01" :indexed
+   "10" :indirect
+   "11" :indirect-increment})
 
-(def source-modes {"00" :direct
-                   "01" :indexed
-                   "10" :indirect
-                   "11" :indirect-increment})
-
-(def dest-modes {"0" :direct
-                 "1" :indirect})
+(def dest-modes
+"Mapping from binary string to register access mode (source register)"
+{"0" :direct
+ "1" :indirect})
 
 ;; single-op is a multimethod that performs a single operand OP. OP is parameterized
 ;; by the first argument (a symbol)
@@ -99,8 +109,8 @@
   [_ computer _ source-mode register]
   (let [[val computer] (get-value computer source-mode false register)]
     (-> computer
-        (set-word-indirect (named-register :sp) val)
-        (dec-reg (named-register :sp))
+        (set-word-indirect (SP computer) val)
+        (dec-SP)
         (set-PC computer val))))
 
 (defmethod single-op :RETI
@@ -113,7 +123,9 @@
         ;;RETI sets status register, no idea what this is about
         (set-ZCN pc false))))
 
-(defn perform-jmp [cnd computer offset]
+(defn perform-jmp
+  "Perform a JMP (does a condition lookup based on symbol)"
+  [cnd computer offset]
   (let [pc (PC computer)]
     (if ((cnd conditions) computer)
       (set-PC computer (+w pc offset))
@@ -220,7 +232,9 @@
     (-> (set-value computer dest-mode byte? dest-reg result)
         (set-ZCN result byte?))))
 
-(defn execute-instruction [wrd computer]
+(defn execute-instruction
+  "Parses an instruction and dispatches to the correct function to execute it"
+  [wrd computer]
   (let [wrd (int->binstr wrd)]
     ;; Matches single operand instruction
     (if-let [[_ opcode byte? source-mode register] (re-matches #"^000100([01]{3})([01])([01]{2})([01]{4})$" wrd)]
@@ -247,9 +261,4 @@
                 dest-reg (binstr->int dest-reg)]
             (print-dual-op op computer byte? source-mode source-reg dest-mode dest-reg)
             (dual-op op computer byte? source-mode source-reg dest-mode dest-reg))
-          "NOPE")))))
-
-
-(defn do-stuff [computer]
-  "Do stuff I guess"
-  (apply execute-instruction (fetch-instruction computer)))
+          (throw Exception "I don't know how to parse " wrd))))))

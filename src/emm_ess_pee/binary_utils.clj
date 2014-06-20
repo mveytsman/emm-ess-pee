@@ -1,7 +1,8 @@
 (ns emm-ess-pee.binary-utils
   (:require [clojure.pprint :refer [cl-format]]))
-;; define some operations on bytes
-(def word unchecked-short)
+
+;; This file contains useful binary operations
+
 (defn make-byte
   "Clojure byte are *signed* so we're going to cheat by anding with 0xff (thereby enxting to an int)"
   [byt]
@@ -19,16 +20,23 @@
     (make-byte value)
     (make-word value)))
 
-(defn low-byte [wrd]
+(defn low-byte
+  "Returns low byte of a little-endian word"
+  [wrd]
   (make-byte (bit-shift-right wrd 8)))
-(defn high-byte [wrd]
+(defn high-byte
+  "Returns high byte of a litle-endian word"
+  [wrd]
   (make-byte (bit-and wrd 0x00ff)))
+
+;; Arithmetic operations that operate on words & bytes
 (def +w (comp make-word +))
 (def -w (comp make-word -))
 (def *w (comp make-word *))
 (def +b (comp make-byte +))
 (def -b (comp make-byte -))
 (def *b (comp make-byte *))
+
 (defn little-endian
   "Flips the two bytes of wrd, i.e. abcd becomes cdab"
   [wrd]

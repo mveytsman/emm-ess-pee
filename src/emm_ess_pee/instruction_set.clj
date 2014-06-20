@@ -1,7 +1,9 @@
 (ns emm-ess-pee.instruction-set
   (:use emm-ess-pee.binary-utils
         emm-ess-pee.computer
-        emm-ess-pee.pprint))
+        emm-ess-pee.pprint
+        )
+  (:require [emm-ess-pee.macros :refer [cond-let]]))
 
 ;; TODO: some instructions set the status register but never overflow, should I set V to 0 then
 ;; TODO: interrupts?
@@ -236,8 +238,9 @@
   "Parses an instruction and dispatches to the correct function to execute it"
   [wrd computer]
   (let [wrd (int->binstr wrd)]
-    ;; Matches single operand instruction
-    (if-let [[_ opcode byte? source-mode register] (re-matches #"^000100([01]{3})([01])([01]{2})([01]{4})$" wrd)]
+    (cond-let
+     ;; Matches single operand instruction
+     [[_ opcode byte? source-mode register] (re-matches #"^000100([01]{3})([01])([01]{2})([01]{4})$" wrd)]
       (let [ op (get single-op-codes opcode)
             source-mode (source-modes source-mode)
             byte? (= byte? "1")
@@ -245,20 +248,19 @@
         (print-single-op op computer byte? source-mode register)
         (single-op       op computer byte? source-mode register))
       ;; Matches jmp instruction
-      (if-let [[_ condition offset] (re-matches #"001([01]{3})([01]{10})$" wrd)]
-        (let [cnd (get condition-codes condition)
-              offset (* 2 (binstr->int offset))]
-          
-          (print-jmp cnd offset)
-          (perform-jmp cnd computer offset))
-        ;; Matches dual operand instruction
-        (if-let [[_ opcode source-reg dest-mode byte? source-mode dest-reg ] (re-matches #"([01]{4})([01]{4})([01])([01])([01]{2})([01]{4})$" wrd)]
-          (let [op (get dual-op-codes opcode)
-                source-mode (source-modes source-mode)
-                source-reg (binstr->int source-reg)
-                byte? (= byte? "1")
-                dest-mode (dest-modes dest-mode)
-                dest-reg (binstr->int dest-reg)]
-            (print-dual-op op computer byte? source-mode source-reg dest-mode dest-reg)
-            (dual-op op computer byte? source-mode source-reg dest-mode dest-reg))
-          (throw Exception "I don't know how to parse " wrd))))))
+      [[_ condition offset] (re-matches #"001([01]{3})([01]{10})$" wrd)]
+      (let [cnd (get condition-codes condition)
+            offset (* 2 ( binstr->int offset))]
+        (print-jmp cnd offset)
+        (perform-jmp cnd computer offset))
+      ;; Matches dual operand instruction
+      [[_ opcode source-reg dest-mode byte? source-mode dest-reg ] (re-matches #"([01]{4})([01]{4})([01])([01])([01]{2})([01]{4})$" wrd)]
+      (let [op (get dual-op-codes opcode)
+            source-mode (source-modes source-mode)
+            source-reg (binstr->int source-reg)
+            byte? (= byte? "1")
+            dest-mode (dest-modes dest-mode)
+            dest-reg (binstr->int dest-reg)]
+        (print-dual-op op computer byte? source-mode source-reg dest-mode dest-reg)
+        (dual-op op computer byte? source-mode source-reg dest-mode dest-reg))
+      :else (throw Exception "I don't know how to parse " wrd))))

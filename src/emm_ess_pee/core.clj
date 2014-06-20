@@ -36,6 +36,7 @@
   (swap! computer-state (constantly (make-computer)))
   (load-code hello-world-code)
   (print-registers (:registers @computer-state)))
+(def r reset)
 
 (defn step
   "Takes a step"
@@ -43,10 +44,30 @@
   (println "Executing Instruction:")
   (swap! computer-state #(apply execute-instruction (fetch-instruction %)))
   (print-registers (:registers @computer-state)))
+(def s step)
 
+(defn continue
+  "Continues execution until exit"
+  []
+  (loop []
+    (step)
+    (if (continue-execution? @computer-state)
+      (recur))))
+(def c continue)
 
-;; TODO: make a cool interactive debugger here
-;; (defn -main
-;;   "I don't do a whole lot ... yet."
-;;   [& args]
-;;   (println "Hello, World!"))
+(defn help
+  "Interactive help function"
+  []
+  (println "This is a clojure REPL that contains some commands for interacting with the emulator")
+  (println "(step) or (s) - step through the debugger")
+  (println "(reset) or (r) reset the processor's state")
+  (println "(continue) or (c) - COMING SOON!"))
+
+(defn -main
+  "Our debugger is a repl"
+   [& args]
+   (println "Welcome to the MAP430")
+   (println "Try (help)")
+   (clojure.main/repl :prompt #(print "MSP430=> ")
+                      :init (fn [] (in-ns 'emm-ess-pee.core)))) 
+   

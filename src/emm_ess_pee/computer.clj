@@ -234,6 +234,12 @@
   (let [instruction (get-word computer (PC computer))]
     [instruction, (inc-PC computer)]))
 
+;; In the future we will hook this for hardware debugging
+(defn continue-execution?
+  "Stop executing when the CPUOFF flag is set"
+  [computer]
+  (= (CPUOFF computer) 0))
+
 (defn calculate-jmp-offset
   "JMP offsets are sign extended 10-bit integers, which are doubled to get the offset in bytes"
   [offset]

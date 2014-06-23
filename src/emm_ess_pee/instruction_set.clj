@@ -145,11 +145,12 @@
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
-        result (+ src dst)
-        computer (-> (set-ZCN computer result byte?)
-                     (set-V-add dst src result byte?))
-        result (make-bw result byte?)]
-    (set-value computer dest-mode byte? dest-reg result)))
+        result-word (+ src dst)
+        result (make-bw result-word byte?)]
+    (-> computer
+      (set-ZCN result-word byte?)
+      (set-V-add dst src result-word byte?)
+      (set-value dest-mode byte? dest-reg result))))
 
 (defmethod dual-op :ADDC
   [_ computer byte? source-mode source-reg dest-mode dest-reg]

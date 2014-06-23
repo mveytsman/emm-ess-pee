@@ -241,7 +241,7 @@
      ;; Matches single operand instruction
      [[_ opcode byte? source-mode register] (re-matches #"^000100([01]{3})([01])([01]{2})([01]{4})$" wrd)]
       (let [ op (get single-op-codes opcode)
-            source-mode (source-modes source-mode)
+            source-mode (get source-modes source-mode)
             byte? (= byte? "1")
             register (binstr->int register)]
         (print-single-op op computer byte? source-mode register)

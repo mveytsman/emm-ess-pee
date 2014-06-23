@@ -145,11 +145,12 @@
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
-        result (+ src dst)
-        computer (-> (set-ZCN computer result byte?)
-                     (set-V-add dst src result byte?))
-        result (make-bw result byte?)]
-    (set-value computer dest-mode byte? dest-reg result)))
+        result-word (+ src dst)
+        result (make-bw result-word byte?)]
+    (-> computer
+      (set-ZCN result-word byte?)
+      (set-V-add dst src result-word byte?)
+      (set-value dest-mode byte? dest-reg result))))
 
 (defmethod dual-op :ADDC
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
@@ -165,10 +166,9 @@
 (defmethod dual-op :SUBC
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
-        src (bit-not src)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
         c (C computer)
-        result (+ src dst c)
+        result (+ (bit-not src) dst c)
         computer (-> (set-ZCN computer result byte?)
                      ;; I don't know if I have the correct order here
                      (set-V-sub dst src result byte?))
@@ -178,9 +178,8 @@
 (defmethod dual-op :SUB
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
-        src (bit-not src)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
-        result (+ dst src 1)
+        result (+ dst (bit-not src) 1)
         computer (-> (set-ZCN computer result byte?)
                      ;; I don't know if I have the correct order here
                      (set-V-sub dst src result byte?))
@@ -242,7 +241,7 @@
      ;; Matches single operand instruction
      [[_ opcode byte? source-mode register] (re-matches #"^000100([01]{3})([01])([01]{2})([01]{4})$" wrd)]
       (let [ op (get single-op-codes opcode)
-            source-mode (source-modes source-mode)
+            source-mode (get source-modes source-mode)
             byte? (= byte? "1")
             register (binstr->int register)]
         (print-single-op op computer byte? source-mode register)

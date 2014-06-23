@@ -133,6 +133,7 @@
 
 (defn set-V-sub
   "Sets the V (overflow) status bit after subtracton"
+  ;; result = (left - right)
   [computer left right result byte?]
   ;;http://teaching.idallen.com/dat2343/10f/notes/040_overflow.txt
   (let [v (if (or (and (= (high-bit left byte?) 0)
@@ -176,6 +177,7 @@
   [computer i bytes]
   (if (<=  (count bytes) 0)
     computer
+    ;; FIXME: loop instead of tail-recur
     (set-bytes (assoc-in computer [:memory  i] (first bytes))
                (inc i)
                (rest bytes))))

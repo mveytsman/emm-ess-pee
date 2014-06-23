@@ -166,10 +166,9 @@
 (defmethod dual-op :SUBC
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
-        src (bit-not src)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
         c (C computer)
-        result (+ src dst c)
+        result (+ (bit-not src) dst c)
         computer (-> (set-ZCN computer result byte?)
                      ;; I don't know if I have the correct order here
                      (set-V-sub dst src result byte?))
@@ -179,9 +178,8 @@
 (defmethod dual-op :SUB
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
-        src (bit-not src)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
-        result (+ dst src 1)
+        result (+ dst (bit-not src) 1)
         computer (-> (set-ZCN computer result byte?)
                      ;; I don't know if I have the correct order here
                      (set-V-sub dst src result byte?))

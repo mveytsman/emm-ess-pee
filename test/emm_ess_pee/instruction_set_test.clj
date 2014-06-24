@@ -17,11 +17,11 @@
   "helper function to wrap execute-instruction"
   [instruction] (execute-instruction (binstr->int instruction) (make-computer)))
 
-(deftest single-op-parsing-test
+(deftest unary-op-parsing-test
   
-  (testing "op parsing"
+  (testing "unary op parsing"
     ;; This redef just gives us back the op symbol (instead of executing the op)
-    (with-redefs [single-op (fn [op _ _ _ _] op)]
+    (with-redefs [unary-op (fn [op _ _ _ _] op)]
       (testing "RRC"
         (is (= (parse-test (str "000100" "000" "0000000"))
                :RRC)))
@@ -45,14 +45,14 @@
                :RETI)))))
 
   (testing "byte/word mode parsing"
-    (with-redefs [single-op (fn [_ _ byte? _ _] byte?)]
+    (with-redefs [unary-op (fn [_ _ byte? _ _] byte?)]
       (testing "word mode"
         (is (false? (parse-test (str "000100" "000" "0" "000000")))))
       (testing "byte mode"
         (is (true?  (parse-test (str "000100" "000" "1" "000000")))))))
 
   (testing "source-mode parsing"
-    (with-redefs [single-op (fn [_ _ _ source-mode  _] source-mode)]
+    (with-redefs [unary-op (fn [_ _ _ source-mode  _] source-mode)]
       (testing "register-direct mode"
         (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
                :direct)))
@@ -67,7 +67,7 @@
                :indirect-increment)))))
 
   (testing "register parsing"
-    (with-redefs [single-op (fn [_ _ _ _ register] register)]
+    (with-redefs [unary-op (fn [_ _ _ _ register] register)]
       (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
              0))
       (is (= (parse-test (str "000100" "000" "0" "00" "0001"))
@@ -97,10 +97,10 @@
         (is (= (parse-test (str "001" "111" "0000000000")) :JMP))))))
 
 
-(deftest dual-op-parsing-test
-  (testing "dual op parsing"
+(deftest bin-op-parsing-test
+  (testing "bin op parsing"
     ;; Redef to return condition symbol
-    (with-redefs [dual-op (fn [op _ _ _ _ _ _] op)]
+    (with-redefs [bin-op (fn [op _ _ _ _ _ _] op)]
       (testing "MOV"
         (is (= (parse-test (str "0100" "000000000000")) :MOV)))
       (testing "ADD"
@@ -126,13 +126,13 @@
       (testing "AND"
         (is (= (parse-test (str "1111" "000000000000")) :AND)))))
   (testing "byte/word parsing"
-    (with-redefs [dual-op (fn [_ _ byte? _ _ _ _] byte?)]
+    (with-redefs [bin-op (fn [_ _ byte? _ _ _ _] byte?)]
       (testing "word-mode"
         (is (= (parse-test (str "0100" "00000" "0" "000000")) false)))
       (testing "byte-mode"
         (is (= (parse-test (str "0100" "00000" "1" "000000")) true)))))
   (testing "source-mode parsing"
-    (with-redefs [dual-op (fn [_ _ _ source-mode _ _ _] source-mode)]
+    (with-redefs [bin-op (fn [_ _ _ source-mode _ _ _] source-mode)]
       (testing "word-mode"
         (is (= (parse-test (str "0100000000" "00" "0000")) :direct)))
       (testing "byte-mode"
@@ -142,16 +142,16 @@
       (testing "byte-mode"
         (is (= (parse-test (str "0100000000" "11" "0000")) :indirect-increment)))))
   (testing "source register parsing"
-    (with-redefs [dual-op (fn [_ _ _ _ source-reg _ _] source-reg)]
+    (with-redefs [bin-op (fn [_ _ _ _ source-reg _ _] source-reg)]
       (is (= (parse-test (str "0100" "0000" "00000000")) 0))
       (is (= (parse-test (str "0100" "0001" "00000000")) 1))
       (is (= (parse-test (str "0100" "1111" "00000000")) 15))))
   (testing "dest-mode parsing"
-    (with-redefs [dual-op (fn [_ _ _ _ _ dest-mode _] dest-mode)]
+    (with-redefs [bin-op (fn [_ _ _ _ _ dest-mode _] dest-mode)]
       (is (= (parse-test (str "01000000" "0" "0000000")) :direct))
       (is (= (parse-test (str "01000000" "1" "0000000")) :indirect))))
   (testing "dest register parsing"
-    (with-redefs [dual-op (fn [_ _ _ _ _ _ dest-reg] dest-reg)]
+    (with-redefs [bin-op (fn [_ _ _ _ _ _ dest-reg] dest-reg)]
       (is (= (parse-test (str "010000000000" "0000")) 0))
       (is (= (parse-test (str "010000000000" "0001")) 1))
       (is (= (parse-test (str "010000000000" "1111")) 15)))))
@@ -244,7 +244,7 @@
           (is (= (get-word computer 0x4402) 0xabcd)))))))
 
 (deftest signle-op-test
-  (testing "single-op"
+  (testing "unary-op"
     (let [register 13
           computer (-> (make-computer)
                        (set-PC 0x4402)
@@ -252,45 +252,45 @@
                        (set-words 0x2000 [0xabcd 0x1234])
                        (set-reg register 0xaaff)
                        (set-word 0xabcd 0x1234))
-          ;; use these function to wrap single-op for testing
+          ;; use these function to wrap unary-op for testing
           ;; Note we are only testing direct register access here
-          single-op-word (fn [op] (single-op op computer false :direct register))
-          single-op-byte (fn [op] (single-op op computer  true :direct register))]
+          unary-op-word (fn [op] (unary-op op computer false :direct register))
+          unary-op-byte (fn [op] (unary-op op computer  true :direct register))]
       (testing "word forms of OPs"
         (testing "RPC"
-          (let [computer (single-op-word :RRC)]
+          (let [computer (unary-op-word :RRC)]
             ;; Rotate right through carry
             (is (= (get-reg computer register) 0x557f))
             (is (= (C computer) 1))))
         (testing "SWPB"
           ;; Swap bytes
-          (let [computer (single-op-word :SWPB)]
+          (let [computer (unary-op-word :SWPB)]
             (is (= (get-reg computer register) 0xffaa))))
         (testing "RRA"
-          (let [computer (single-op-word :RRA)]
+          (let [computer (unary-op-word :RRA)]
             (is (= (get-reg computer register) 0x557f))))
         (testing "SXT"
-          (let [computer (single-op-word :SXT)]
+          (let [computer (unary-op-word :SXT)]
             ;; Sign extend
             (is (= (get-reg computer register) 0xffff))))
         (testing "PUSH"
-          (let [computer (single-op-word :PUSH)]
+          (let [computer (unary-op-word :PUSH)]
             (is (= (get-word computer 0x2000) 0xaaff))
             (is (= (SP computer) 0x1ffe))))
         (testing "RETI"
-          (let [computer (single-op-word :RETI)]
+          (let [computer (unary-op-word :RETI)]
             (is (= (SP computer) 0xabcd))
             (is (= (PC computer) 0x1234)))))
       (testing "byte forms of OPs"
         (testing "RRC"
-          (let [computer (single-op-byte :RRC)]
+          (let [computer (unary-op-byte :RRC)]
             (is (= (get-reg computer register) 0x007f))
             (is (= (C computer) 1))))
         (testing "RRA"
-          (let [computer (single-op-byte :RRA)]
+          (let [computer (unary-op-byte :RRA)]
             (is (= (get-reg computer register) 0x007f))))
         (testing "PUSH"
-          (let [computer (single-op-byte :PUSH)]
+          (let [computer (unary-op-byte :PUSH)]
             (is (= (get-word computer 0x2000) 0x00ff))
             (is (= (SP computer) 0x1ffe))))))))
 
@@ -344,71 +344,71 @@
 
 
 
-(deftest dual-op-test
-  (testing "dual-op"
+(deftest bin-op-test
+  (testing "bin-op"
     (let [register1 12
           register2 13
           computer (-> (make-computer)
                        (set-C 1)
                        (set-reg register1 0xaaff)
                        (set-reg register2 0xbbe1))
-          ;; use these function to wrap single-op for testing
+          ;; use these function to wrap unary-op for testing
           ;; Note we are only testing direct register access here
-          dual-op-word (fn [op] (dual-op op computer false :direct register1 :direct register2))
-          dual-op-byte (fn [op] (dual-op op computer true :direct register1 :direct register2))]
+          bin-op-word (fn [op] (bin-op op computer false :direct register1 :direct register2))
+          bin-op-byte (fn [op] (bin-op op computer true :direct register1 :direct register2))]
       (testing "MOV"
         (testing "word-mode"
-          (let [computer (dual-op-word :MOV)]
+          (let [computer (bin-op-word :MOV)]
             (is (= (get-reg computer register2) 0xaaff))))
         (testing "byte-mode"
-          (let [computer (dual-op-byte :MOV)]
+          (let [computer (bin-op-byte :MOV)]
             (is (= (get-reg computer register2) 0x00ff)))))
       
       (testing "ADD"
         (testing "word-mode"
-          (let [computer (dual-op-word :ADD)]
+          (let [computer (bin-op-word :ADD)]
             (is (= (get-reg computer register2) 0x66e0))))
         (testing "byte-mode"
-          (let [computer (dual-op-byte :ADD)]
+          (let [computer (bin-op-byte :ADD)]
             (is (= (get-reg computer register2) 0xe0)))))
 
       (testing "ADDC"
         (testing "word-mode"
-          (let [computer (dual-op-word :ADDC)]
+          (let [computer (bin-op-word :ADDC)]
             (is (= (get-reg computer register2) 0x66e1))))
         (testing "byte-mode"
-          (let [computer (dual-op-byte :ADDC)]
+          (let [computer (bin-op-byte :ADDC)]
             (is (= (get-reg computer register2) 0xe1)))))
 
 
       (testing "SUBC"
         (testing "word-mode"
-          (let [computer (dual-op-word :SUBC)]
+          (let [computer (bin-op-word :SUBC)]
             (is (= (get-reg computer register2) 0x10e2))))
         (testing "byte-mode"
-          (let [computer (dual-op-byte :SUBC)]
+          (let [computer (bin-op-byte :SUBC)]
             (is (= (get-reg computer register2) 0xe2)))))
 
 
       (testing "SUB"
         ;; this is the same as SUBC because the carry bit is 1
         (testing "word-mode"
-          (let [computer (dual-op-word :SUB)]
+          (let [computer (bin-op-word :SUB)]
             (is (= (get-reg computer register2) 0x10e2))))
         (testing "byte-mode"
-          (let [computer (dual-op-byte :SUB)]
+          (let [computer (bin-op-byte :SUB)]
             (is (= (get-reg computer register2) 0xe2)))))
 
       ;; not a good test
       (testing "CMP"
         (testing "word-mode"
-          (let [computer (dual-op-word :CMP)]
+          (let [computer (bin-op-word :CMP)]
             (is (= (C computer)) 0)
             (is (= (Z computer)) 0)
             (is (= (N computer)) 0)
             (is (= (V computer)) 0)))
         (testing "byte-mode"
-          (let [computer (dual-op-word :CMP)]
+          (let [computer (bin-op-word :CMP)]
             (is (= (C computer)) 0)
             (is (= (Z computer)) 0)
             (is (= (N computer)) 0)
@@ -416,55 +416,55 @@
       
       (testing "DADD" ;; TODO!!
         (testing "word-mode"
-          (let [computer (dual-op-word :ADDC)]
+          (let [computer (bin-op-word :ADDC)]
             (is (= (get-reg computer register2) 0x66e1))))
         (testing "byte-mode"
-          (let [computer (dual-op-byte :ADDC)]
+          (let [computer (bin-op-byte :ADDC)]
             (is (= (get-reg computer register2) 0xe1)))))
       
       (testing "BIT"
         (testing "word-mode"
-          (let [computer (dual-op-word :BIT)]
+          (let [computer (bin-op-word :BIT)]
             (is (= (Z computer) 0))
             (is (= (C computer) 0))
             (is (= (N computer) 1))))
         (testing "byte-mode"
-          (let [computer (dual-op-byte :BIT)]
+          (let [computer (bin-op-byte :BIT)]
             (is (= (Z computer) 0))
             (is (= (C computer) 0))
             (is (= (N computer) 1)))))
       
       (testing "BIC"
         (testing "word-mode"
-          (let [computer (dual-op-word :BIC)]
+          (let [computer (bin-op-word :BIC)]
             (is (= (get-reg computer register2) 0x1100))))
         (testing "byte-mode"
-          (let [computer (dual-op-byte :BIC)]
+          (let [computer (bin-op-byte :BIC)]
             (is (= (get-reg computer register2) 0x00)))))
 
       (testing "BIS"
         (testing "word-mode"
-          (let [computer (dual-op-word :BIS)]
+          (let [computer (bin-op-word :BIS)]
             (is (= (get-reg computer register2) 0xbbff))))
         (testing "byte-mode"
-          (let [computer (dual-op-byte :BIS)]
+          (let [computer (bin-op-byte :BIS)]
             (is (= (get-reg computer register2) 0xff)))))
 
 
       (testing "XOR"
         (testing "word-mode"
-          (let [computer (dual-op-word :XOR)]
+          (let [computer (bin-op-word :XOR)]
             (is (= (get-reg computer register2) 0x111e))))
         (testing "byte-mode"
-          (let [computer (dual-op-byte :XOR)]
+          (let [computer (bin-op-byte :XOR)]
             (is (= (get-reg computer register2) 0x1e)))))
 
       (testing "AND"
         (testing "word-mode"
-          (let [computer (dual-op-word :AND)]
+          (let [computer (bin-op-word :AND)]
             (is (= (get-reg computer register2) 0xaae1))))
         (testing "byte-mode"
-          (let [computer (dual-op-byte :AND)]
+          (let [computer (bin-op-byte :AND)]
             (is (= (get-reg computer register2) 0xe1)))))
 
 

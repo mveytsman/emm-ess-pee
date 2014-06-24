@@ -33,7 +33,7 @@
     (str reg-display )))
 
 
-(defn print-single-op
+(defn print-unary-op
   "Prints a operation of one operand along with its arguments"
   [op computer byte? source-mode register]
   (let [op (print-op op byte?)
@@ -45,7 +45,7 @@
 
 
 
-(defn print-dual-op
+(defn print-bin-op
   "Prints an operation of two arguments along with its arguments"
   [op computer byte? source-mode source-reg dest-mode dest-reg]
   (let [op (print-op op byte?)

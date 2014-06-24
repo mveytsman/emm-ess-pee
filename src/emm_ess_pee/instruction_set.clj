@@ -9,7 +9,7 @@
 ;; TODO: interrupts?
 ;; TODO: DADC instruction
 
-(def single-op-codes
+(def unary-op-codes
   "Mapping from binary string to opcode for single operand ops"
   {"000" :RRC
    "001" :SWPB
@@ -30,7 +30,7 @@
    "110" :JL
    "111" :JMP})
 
-(def dual-op-codes
+(def bin-op-codes
   "Mapping from binary string to opcode for dual operand ops"
   {"0100" :MOV
    "0101" :ADD
@@ -68,11 +68,11 @@
 {"0" :direct
  "1" :indirect})
 
-;; single-op is a multimethod that performs a single operand OP. OP is parameterized
+;; unary-op is a multimethod that performs a single operand OP. OP is parameterized
 ;; by the first argument (a symbol)
 ;; These always puts the result in the register directly, which is a bug I believe?
-(defmulti single-op (fn [op _ _ _ _] op))
-(defmethod single-op :RRC
+(defmulti unary-op (fn [op _ _ _ _] op))
+(defmethod unary-op :RRC
   [_ computer byte? source-mode register]
   (let [[val computer] (get-value computer source-mode byte? register)
         high-bit (if byte? 7 15)
@@ -83,31 +83,31 @@
         (set-C new-c)
         (set-reg register (make-word new-val)))))
 
-(defmethod single-op :SWPB
+(defmethod unary-op :SWPB
   [_ computer _ source-mode register]
   (let [[value computer] (get-value computer source-mode false register)]
     (set-reg computer register (little-endian value))))
 
-(defmethod single-op :RRA
+(defmethod unary-op :RRA
   [_ computer byte? source-mode register]
   (let [[value computer] (get-value computer source-mode byte? register)
         result (make-bw (bit-shift-right value 1) byte?)]
     (-> (set-reg computer register result)
         (set-ZCN result byte?))))
 
-(defmethod single-op :SXT
+(defmethod unary-op :SXT
   [_ computer _ source-mode register]
   (let [[val computer] (get-value computer source-mode false register)
         result (make-word (unchecked-byte (high-byte val)))]
     (-> (set-reg computer register result)
         (set-ZCN result false))))
 
-(defmethod single-op :PUSH
+(defmethod unary-op :PUSH
   [_ computer byte? source-mode register]
   (let [[val computer] (get-value computer source-mode byte? register)]
     (stack-push computer (make-word val))))
 
-(defmethod single-op :CALL
+(defmethod unary-op :CALL
   [_ computer _ source-mode register]
   (let [[val computer] (get-value computer source-mode false register)]
     (-> computer
@@ -115,7 +115,7 @@
         (dec-SP)
         (set-PC computer val))))
 
-(defmethod single-op :RETI
+(defmethod unary-op :RETI
   [_ computer _ _ _]
   (let [[sp computer] (stack-pop computer)
         [pc computer] (stack-pop computer)]
@@ -133,15 +133,15 @@
       (set-PC computer (+w pc offset))
       computer)))
 
-;; dual-op is a multimethod that performs a single operand OP. OP is parameterized
+;; bin-op is a multimethod that performs a single operand OP. OP is parameterized
 ;; by the first argument (a symbol)
-(defmulti dual-op (fn [op _ _ _ _ _ _] op))
-(defmethod dual-op :MOV
+(defmulti bin-op (fn [op _ _ _ _ _ _] op))
+(defmethod bin-op :MOV
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[val computer] (get-value computer source-mode byte? source-reg)]
     (set-value computer dest-mode byte? dest-reg (make-word val))))
 
-(defmethod dual-op :ADD
+(defmethod bin-op :ADD
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
@@ -152,7 +152,7 @@
       (set-V-add dst src result-word byte?)
       (set-value dest-mode byte? dest-reg result))))
 
-(defmethod dual-op :ADDC
+(defmethod bin-op :ADDC
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
@@ -163,7 +163,7 @@
         result (make-bw result byte?)]
     (set-value computer dest-mode byte? dest-reg result)))
 
-(defmethod dual-op :SUBC
+(defmethod bin-op :SUBC
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
@@ -175,7 +175,7 @@
         result (make-bw result byte?)]
     (set-value computer dest-mode byte? dest-reg result)))
 
-(defmethod dual-op :SUB
+(defmethod bin-op :SUB
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
@@ -186,38 +186,38 @@
         result (make-bw result byte?)]
     (set-value computer dest-mode byte? dest-reg result)))
 
-(defmethod dual-op :CMP
+(defmethod bin-op :CMP
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
         result (- dst src)]
     (-> (set-ZCN computer result byte?)
         (set-V-sub dst src result byte?))))
-(defmethod dual-op :DADD
+(defmethod bin-op :DADD
   [_ computer byte? source-mode source-reg dest-mode dest-reg])
 
-(defmethod dual-op :BIT
+(defmethod bin-op :BIT
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
         result (bit-and dst src)]
     (set-ZCN computer result byte?)))
 
-(defmethod dual-op :BIC
+(defmethod bin-op :BIC
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
         result (bit-and dst (bit-not src))]
     (set-value computer dest-mode byte? dest-reg result)))
 
-(defmethod dual-op :BIS
+(defmethod bin-op :BIS
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
         result (bit-or dst src)]
     (set-value computer dest-mode byte? dest-reg result)))
 
-(defmethod dual-op :XOR
+(defmethod bin-op :XOR
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
@@ -225,7 +225,7 @@
     (-> (set-value computer dest-mode byte? dest-reg result)
         (set-ZCN result byte?))))
 
-(defmethod dual-op :AND
+(defmethod bin-op :AND
   [_ computer byte? source-mode source-reg dest-mode dest-reg]
   (let [[src computer] (get-value computer source-mode byte? source-reg)
         [dst computer] (get-value computer dest-mode byte? dest-reg)
@@ -240,12 +240,12 @@
     (cond-let
      ;; Matches single operand instruction
      [[_ opcode byte? source-mode register] (re-matches #"^000100([01]{3})([01])([01]{2})([01]{4})$" wrd)]
-      (let [ op (get single-op-codes opcode)
+      (let [ op (get unary-op-codes opcode)
             source-mode (get source-modes source-mode)
             byte? (= byte? "1")
             register (binstr->int register)]
-        (print-single-op op computer byte? source-mode register)
-        (single-op       op computer byte? source-mode register))
+        (print-unary-op op computer byte? source-mode register)
+        (unary-op       op computer byte? source-mode register))
       ;; Matches jmp instruction
       [[_ condition offset] (re-matches #"001([01]{3})([01]{10})$" wrd)]
       (let [cnd (get condition-codes condition)
@@ -254,12 +254,12 @@
         (perform-jmp cnd computer offset))
       ;; Matches dual operand instruction
       [[_ opcode source-reg dest-mode byte? source-mode dest-reg ] (re-matches #"([01]{4})([01]{4})([01])([01])([01]{2})([01]{4})$" wrd)]
-      (let [op (get dual-op-codes opcode)
+      (let [op (get bin-op-codes opcode)
             source-mode (source-modes source-mode)
             source-reg (binstr->int source-reg)
             byte? (= byte? "1")
             dest-mode (dest-modes dest-mode)
             dest-reg (binstr->int dest-reg)]
-        (print-dual-op op computer byte? source-mode source-reg dest-mode dest-reg)
-        (dual-op op computer byte? source-mode source-reg dest-mode dest-reg))
+        (print-bin-op op computer byte? source-mode source-reg dest-mode dest-reg)
+        (bin-op op computer byte? source-mode source-reg dest-mode dest-reg))
       :else (throw Exception "I don't know how to parse " wrd))))

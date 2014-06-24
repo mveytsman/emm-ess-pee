@@ -8,11 +8,11 @@
   # $(TARGET).elf $(TARGET).hex and $(TARGET).txt nad $(TARGET).map are all generated.
   # The TXT file is used for BSL loading, the ELF can be used for JTAG use
   # 
-  TARGET     = test1
+  TARGET     = hello_world
   MCU        = msp430f5529
   # List all the source files here
   # eg if you have a source file foo.c then list it here
-  SOURCES = test1.c
+  SOURCES = hello_world.c
   # Include are located in the Include directory
   INCLUDES = -IInclude
   # Add or subtract whatever MSPGCC flags you want. There are plenty more

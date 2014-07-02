@@ -35,8 +35,8 @@
 
 (defn print-unary-op
   "Prints a operation of one operand along with its arguments"
-  [op computer byte? source-mode register]
-  (let [op (print-op op byte?)
+  [opcode computer byte? source-mode register]
+  (let [op (print-op opcode byte?)
         reg (print-register-access computer source-mode register)
         value 1234;(get-value computer :direct  register)
         ]

@@ -15,44 +15,44 @@
 
 (defn parse-test
   "helper function to wrap execute-instruction"
-  [instruction] (execute-instruction (binstr->int instruction) (make-computer)))
+  [instruction]
+  (execute-instruction (binstr->int instruction) (make-computer)))
 
 (deftest unary-op-parsing-test
-  
   (testing "unary op parsing"
     ;; This redef just gives us back the op symbol (instead of executing the op)
-    (with-redefs [unary-op (fn [op _ _ _ _] op)]
+    (with-redefs [call-unary-op (fn [opcode _] (get-in unary-ops [opcode :name]))]
       (testing "RRC"
         (is (= (parse-test (str "000100" "000" "0000000"))
-               :RRC)))
+               "RRC")))
       (testing "SWPB"
         (is (= (parse-test (str "000100" "001" "0000000"))
-               :SWPB)))
+               "SWPB")))
       (testing "RRA"
         (is (= (parse-test (str "000100" "010" "0000000"))
-               :RRA)))
+               "RRA")))
       (testing "SXT"
         (is (= (parse-test (str "000100" "011" "0000000"))
-               :SXT)))
+               "SXT")))
       (testing "PUSH"
         (is (= (parse-test (str "000100" "100" "0000000"))
-               :PUSH)))
+               "PUSH")))
       (testing "CALL"
         (is (= (parse-test (str "000100" "101" "0000000"))
-               :CALL)))
+               "CALL")))
       (testing "RETI"
         (is (= (parse-test (str "000100" "110" "0000000"))
-               :RETI)))))
+               "RETI")))))
 
   (testing "byte/word mode parsing"
-    (with-redefs [unary-op (fn [_ _ byte? _ _] byte?)]
+    (with-redefs [call-unary-op (fn [_ [_ byte? _ _]] byte?)]
       (testing "word mode"
         (is (false? (parse-test (str "000100" "000" "0" "000000")))))
       (testing "byte mode"
         (is (true?  (parse-test (str "000100" "000" "1" "000000")))))))
 
   (testing "source-mode parsing"
-    (with-redefs [unary-op (fn [_ _ _ source-mode  _] source-mode)]
+    (with-redefs [call-unary-op (fn [_ [_ _ source-mode  _]] source-mode)]
       (testing "register-direct mode"
         (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
                :direct)))
@@ -67,7 +67,7 @@
                :indirect-increment)))))
 
   (testing "register parsing"
-    (with-redefs [unary-op (fn [_ _ _ _ register] register)]
+    (with-redefs [call-unary-op (fn [_ [_ _ _ register]] register)]
       (is (= (parse-test (str "000100" "000" "0" "00" "0000"))
              0))
       (is (= (parse-test (str "000100" "000" "0" "00" "0001"))
@@ -254,43 +254,47 @@
                        (set-word 0xabcd 0x1234))
           ;; use these function to wrap unary-op for testing
           ;; Note we are only testing direct register access here
-          unary-op-word (fn [op] (unary-op op computer false :direct register))
-          unary-op-byte (fn [op] (unary-op op computer  true :direct register))]
+          get-opcode (fn [op-name]
+                       (-> (filter #(= op-name (:name (second  %))) unary-ops)
+                           (first)
+                           (first)))
+          unary-op-word (fn [op] (call-unary-op (get-opcode op) [computer false :direct register]))
+          unary-op-byte (fn [op] (call-unary-op (get-opcode op) [computer  true :direct register]))]
       (testing "word forms of OPs"
         (testing "RPC"
-          (let [computer (unary-op-word :RRC)]
+          (let [computer (unary-op-word "RRC")]
             ;; Rotate right through carry
             (is (= (get-reg computer register) 0x557f))
             (is (= (C computer) 1))))
         (testing "SWPB"
           ;; Swap bytes
-          (let [computer (unary-op-word :SWPB)]
+          (let [computer (unary-op-word "SWPB")]
             (is (= (get-reg computer register) 0xffaa))))
         (testing "RRA"
-          (let [computer (unary-op-word :RRA)]
+          (let [computer (unary-op-word "RRA")]
             (is (= (get-reg computer register) 0x557f))))
         (testing "SXT"
-          (let [computer (unary-op-word :SXT)]
+          (let [computer (unary-op-word "SXT")]
             ;; Sign extend
             (is (= (get-reg computer register) 0xffff))))
         (testing "PUSH"
-          (let [computer (unary-op-word :PUSH)]
+          (let [computer (unary-op-word "PUSH")]
             (is (= (get-word computer 0x2000) 0xaaff))
             (is (= (SP computer) 0x1ffe))))
         (testing "RETI"
-          (let [computer (unary-op-word :RETI)]
+          (let [computer (unary-op-word "RETI")]
             (is (= (SP computer) 0xabcd))
             (is (= (PC computer) 0x1234)))))
       (testing "byte forms of OPs"
         (testing "RRC"
-          (let [computer (unary-op-byte :RRC)]
+          (let [computer (unary-op-byte "RRC")]
             (is (= (get-reg computer register) 0x007f))
             (is (= (C computer) 1))))
         (testing "RRA"
-          (let [computer (unary-op-byte :RRA)]
+          (let [computer (unary-op-byte "RRA")]
             (is (= (get-reg computer register) 0x007f))))
         (testing "PUSH"
-          (let [computer (unary-op-byte :PUSH)]
+          (let [computer (unary-op-byte "PUSH")]
             (is (= (get-word computer 0x2000) 0x00ff))
             (is (= (SP computer) 0x1ffe))))))))
 
@@ -465,8 +469,5 @@
             (is (= (get-reg computer register2) 0xaae1))))
         (testing "byte-mode"
           (let [computer (bin-op-byte :AND)]
-            (is (= (get-reg computer register2) 0xe1)))))
+            (is (= (get-reg computer register2) 0xe1))))))))
 
-
-    )))
-    

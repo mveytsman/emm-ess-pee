@@ -161,9 +161,19 @@
         (assoc-in [:memory i] lb)
         (assoc-in [:memory (inc i)] hb))))
 
+(defn get-bytes
+  "Returns a vector of length n of bytes from memory at index i. Wraps around"
+  [computer i n]
+  (let [memory (:memory computer)]
+    (if (>= (+ i n) (count memory))
+      (vec (concat (subvec memory i (count memory))
+                   (subvec memory 0 (- n (- (count memory) i)))))
+      (subvec memory i (+ i n)))))
+
 (defn set-words
   ;; TODO NOTE THIS WRITES BACKWARDS
-  ;; I used this in a test to write to the stack, FIX or RENAME
+  ;; I used this in a test to write to the stack,
+  ;; TODO: FIX or RENAME
   "Writes a series of words to memory starting at index"
   [computer i words]
   (if (<=  (count words) 0)

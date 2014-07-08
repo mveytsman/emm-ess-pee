@@ -307,7 +307,7 @@
   "Make a bag of state we call a computer, set PC to 0x4400"
   []  
   (let [computer {:registers (vec (repeat 16 (make-word 0)))
-                  :memory (vec (repeat 64000 (make-byte 0)))}]
+                  :memory (vec (repeat 0xffff (make-byte 0)))}]
     (set-PC computer 0x4400)))
 
 
